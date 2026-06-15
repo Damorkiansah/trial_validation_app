@@ -1,0 +1,1 @@
+csrf_token|s:64:"abf3a6fbf05e10b220751af800bc1253c85930557a799070a3642e14591406b1";user|a:9:{s:2:"id";i:9;s:4:"name";s:5:"damor";s:5:"email";s:16:"damor@cosmax.com";s:4:"role";s:5:"Admin";s:10:"department";s:2:"IT";s:9:"is_active";i:1;s:10:"created_at";s:19:"2026-05-06 09:45:24";s:10:"deleted_at";N;s:10:"deleted_by";N;}

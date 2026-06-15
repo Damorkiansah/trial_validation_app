@@ -1,0 +1,1 @@
+csrf_token|s:64:"87ca19c8de86902e656914cbc88680d6dd29ec5ab060e77e8747cce0cd03e890";user|a:7:{s:2:"id";i:2;s:4:"name";s:11:"Staff Trial";s:5:"email";s:16:"staff@local.test";s:4:"role";s:5:"Staff";s:10:"department";s:5:"Staff";s:9:"is_active";i:1;s:10:"created_at";s:19:"2026-05-06 09:37:02";}
