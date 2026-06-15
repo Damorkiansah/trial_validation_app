@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Trial Validation System PHP + MySQL v4
 
 ## Instalasi
@@ -111,3 +112,7 @@ Perubahan utama:
 - Audit trail disimpan di tabel `audit_logs`.
 - Header trial memiliki field tambahan: Batch Number, Bulk Code, Support Team, Initiated person/team, Reason, dan B.O.M.
 - Department user reviewer dinormalisasi agar role PRD/RNI/QAC/PRNI/PI selalu bisa melihat review department sebelumnya.
+=======
+# trial_validation_app
+>>>>>>> 08b66dfb967e58443bb2d1e01cc7b5a3bcb12e1a
+yooo
