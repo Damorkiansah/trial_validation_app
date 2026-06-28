@@ -305,7 +305,7 @@ if($path==='/report/audit-print-log'){
 
 if(preg_match('#^/trials/(\d+)/print-log$#',$path,$m)&&$method==='POST'){
  $t=trial($m[1]);
- r+equire_trial_view($t);
+ require_trial_view($t);
  audit_log($t['id'],'report_printed',[],['report_type'=>'Report Summary']);
  logActivity('PRINT_REPORT','REPORT',$t['id'],$t['trial_code'],null,['report_type'=>'Report Summary']);
  header('Content-Type: application/json');

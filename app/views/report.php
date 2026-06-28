@@ -148,6 +148,14 @@
     <?php
     $reviewByDept=[];
     $activeRound=current_review_round($t);
+    $availableRounds=[];
+    foreach($reviews as $rv){
+      $availableRounds[]=(int)($rv['review_round']??1);
+    }
+    $availableRounds=array_values(array_unique($availableRounds));
+    if($availableRounds&&!in_array($activeRound,$availableRounds,true)){
+      $activeRound=max($availableRounds);
+    }
     foreach($reviews as $rv){
       if((int)($rv['review_round']??1)===$activeRound) $reviewByDept[$rv['department']]=$rv;
     }
