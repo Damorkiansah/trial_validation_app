@@ -25,7 +25,7 @@
   </label>
   <div class="filter-actions">
     <button class="btn btn-primary">Search</button>
-    <a class="btn btn-light" href="<?=h(parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH))?>">Reset</a>
+    <a class="btn btn-light" href="<?=h($currentPath??normalize_request_path(parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH)))?>">Reset</a>
   </div>
 </form>
 

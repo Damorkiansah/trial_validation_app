@@ -6,6 +6,7 @@ $pageMap=[
  '/trials/create'=>'New Trial',
  '/trials/approved'=>'Approved Trials',
  '/trials/in-review'=>'In Review Trials',
+ '/trials/need-revision'=>'Need Revision Trials',
  '/trials/rejected'=>'Rejected Trials',
  '/trials/waiting-approval'=>'Waiting Approval',
  '/approval'=>'Approval',
@@ -35,6 +36,7 @@ if(!$isLogin){
  if(can_approve_trials()) $nav[]=['label'=>'Waiting Approval','href'=>'/trials/waiting-approval','icon'=>'W','paths'=>['/trials/waiting-approval']];
  $nav[]=['label'=>'In Review','href'=>'/trials/in-review','icon'=>'R','paths'=>['/trials/in-review','/reviews']];
  $nav[]=['label'=>'Approved','href'=>'/trials/approved','icon'=>'A','paths'=>['/trials/approved']];
+ $nav[]=['label'=>'Need Revision','href'=>'/trials/need-revision','icon'=>'V','paths'=>['/trials/need-revision']];
  $nav[]=['label'=>'Rejected','href'=>'/trials/rejected','icon'=>'X','paths'=>['/trials/rejected']];
  if(is_admin()||role()==='Staff'){
   $children=[];

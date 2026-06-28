@@ -1,7 +1,7 @@
 <div class="page-heading">
   <div>
     <h1>Rejected Report</h1>
-    <p>Trial rejected atau membutuhkan revisi.</p>
+    <p>Trial yang ditolak final oleh Manager QAC.</p>
   </div>
   <button class="btn btn-light" onclick="window.print()">Print</button>
 </div>

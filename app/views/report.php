@@ -66,7 +66,8 @@
     <div><span>Risk Level</span><strong><?=h($t['risk_level'])?></strong></div>
     <div><span>Machine Used</span><strong><?=h(display_multi_value($t['machine_used']))?></strong></div>
     <div><span>Created By</span><strong><?=h($t['created_by'])?></strong></div>
-    <div><span>Final Approval Status</span><strong><?=h($t['final_decision']?:$t['progress_status'])?></strong></div>
+    <?php $displayDecision=in_array($t['progress_status'],['Approved','Rejected'],true)?($t['final_decision']?:$t['progress_status']):$t['progress_status']; ?>
+    <div><span>Approval Status</span><strong><?=h($displayDecision)?></strong></div>
     <div><span>Manager QAC Name</span><strong><?=h(display_person_name($t['approved_by']?:($t['rejected_by']?:''))?:'-')?></strong></div>
   </section>
 
@@ -174,10 +175,25 @@
   </table>
 
   <?php if(!empty($t['approved_by'])||!empty($t['rejected_by'])||!empty($t['approval_comment'])): ?>
+    <?php
+      $managerDecision=$t['final_decision']?:$t['progress_status'];
+      $decisionBy=$managerDecision==='Approved'?($t['approved_by']??''):($t['rejected_by']??'');
+      $decisionAt=$managerDecision==='Approved'?($t['approved_at']??''):($t['rejected_at']??'');
+      $decisionLabel=[
+        'Approved'=>'Approved By',
+        'Need Revision'=>'Revision Requested By',
+        'Rejected'=>'Rejected By',
+      ][$managerDecision]??'Decision By';
+      $dateLabel=[
+        'Approved'=>'Approved At',
+        'Need Revision'=>'Revision Requested At',
+        'Rejected'=>'Rejected At',
+      ][$managerDecision]??'Decision At';
+    ?>
     <h3>Manager QAC Decision</h3>
     <table class="report-table">
-      <tr><th>Approved By </th><td><?=h(display_person_name($t['approved_by']??''))?></td><th>Approved At</th><td><?=h($t['approved_at']??'')?></td></tr>
-      <tr><th>Rejected By  </th><td><?=h(display_person_name($t['rejected_by']??''))?></td><th>Rejected At</th><td><?=h($t['rejected_at']??'')?></td></tr>
+      <tr><th>Decision</th><td><?=h($managerDecision)?></td><th>Status</th><td><?=h($t['progress_status'])?></td></tr>
+      <tr><th><?=h($decisionLabel)?></th><td><?=h(display_person_name($decisionBy))?></td><th><?=h($dateLabel)?></th><td><?=h($decisionAt)?></td></tr>
       <tr><th>Comment</th><td colspan="3"><?=h($t['approval_comment']??'')?></td></tr>
     </table>
   <?php endif; ?>

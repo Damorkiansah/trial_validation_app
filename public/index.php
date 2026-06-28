@@ -195,11 +195,12 @@ if($path==='/dashboard'){
  exit;
 }
 
-if(in_array($path,['/trials/approved','/trials/in-review','/trials/rejected','/trials/waiting-approval'],true)){
+if(in_array($path,['/trials/approved','/trials/in-review','/trials/need-revision','/trials/rejected','/trials/waiting-approval'],true)){
  $map=[
   '/trials/approved'=>['approved','Approved Trials','Daftar trial dengan status approved.'],
   '/trials/in-review'=>['in-review','In Review Trials','Trial yang sedang dalam proses review.'],
-  '/trials/rejected'=>['rejected','Rejected / Need Revision','Trial yang ditolak atau membutuhkan revisi.'],
+  '/trials/need-revision'=>['need-revision','Need Revision Trials','Trial yang dikembalikan ke Staff untuk direvisi.'],
+  '/trials/rejected'=>['rejected','Rejected Trials','Trial yang ditolak final.'],
   '/trials/waiting-approval'=>['waiting','Waiting Approval','Trial yang menunggu approval Manager QAC.'],
  ];
  [$group,$pageTitle,$pageSubtitle]=$map[$path];
@@ -831,7 +832,7 @@ if(preg_match('#^/trials/(\d+)/approval$#',$path,$m)&&$method==='POST'){
   redirect('/approvals');
  }
  $decision=$_POST['decision']??'';
- if(!in_array($decision,['Approved','Rejected'],true)) die('Decision invalid');
+ if(!in_array($decision,['Approved','Need Revision','Rejected'],true)) die('Decision invalid');
  $comment=trim($_POST['approval_comment']??'');
  $password=$_POST['signature_password']??'';
  if($comment===''||$password===''){
@@ -867,7 +868,7 @@ if(preg_match('#^/trials/(\d+)/approval$#',$path,$m)&&$method==='POST'){
    'message'=>'Trial '.$t['trial_code'].' - '.$t['product_name'].' sudah approved oleh Manager QAC.',
    'type'=>'approved',
   ]);
- }else{
+ }elseif($decision==='Need Revision'){
   db()->prepare('UPDATE trials_header SET progress_status="Need Revision",current_step="Revision",final_decision="Need Revision",pending_with="Staff",revision_no=revision_no+1,rejected_by=?,rejected_at=NOW(),approval_comment=?,updated_at=NOW() WHERE id=?')
    ->execute([$managerName,$comment,$t['id']]);
   $creatorId=user_id_by_email($t['created_by']??'');
@@ -876,29 +877,42 @@ if(preg_match('#^/trials/(\d+)/approval$#',$path,$m)&&$method==='POST'){
     'user_id'=>$creatorId,
     'role_target'=>'Staff',
     'trial_id'=>$t['id'],
-    'title'=>'Trial Rejected / Need Revision',
-    'message'=>'Trial '.$t['trial_code'].' - '.$t['product_name'].' ditolak dan perlu revisi.',
-    'type'=>'rejected',
-   ]);
+     'title'=>'Trial Need Revision',
+     'message'=>'Trial '.$t['trial_code'].' membutuhkan revisi.',
+     'type'=>'revision',
+    ]);
+  }
+  createNotification([
+   'role_target'=>'Admin',
+   'trial_id'=>$t['id'],
+   'title'=>'Trial Need Revision',
+   'message'=>'Trial '.$t['trial_code'].' - '.$t['product_name'].' dikembalikan ke Staff untuk revisi.',
+   'type'=>'revision',
+  ]);
+ }else{
+  db()->prepare('UPDATE trials_header SET progress_status="Rejected",current_step="Closed",final_decision="Rejected",pending_with="",rejected_by=?,rejected_at=NOW(),approval_comment=?,updated_at=NOW() WHERE id=?')
+   ->execute([$managerName,$comment,$t['id']]);
+  $creatorId=user_id_by_email($t['created_by']??'');
+  if($creatorId){
    createNotification([
     'user_id'=>$creatorId,
     'role_target'=>'Staff',
     'trial_id'=>$t['id'],
-    'title'=>'Trial Need Revision',
-    'message'=>'Trial '.$t['trial_code'].' membutuhkan revisi.',
-    'type'=>'revision',
+    'title'=>'Trial Rejected',
+    'message'=>'Trial '.$t['trial_code'].' - '.$t['product_name'].' ditolak final oleh Manager QAC.',
+    'type'=>'rejected',
    ]);
   }
   createNotification([
    'role_target'=>'Admin',
    'trial_id'=>$t['id'],
-   'title'=>'Trial Rejected / Need Revision',
-   'message'=>'Trial '.$t['trial_code'].' - '.$t['product_name'].' ditolak dan perlu revisi.',
+   'title'=>'Trial Rejected',
+   'message'=>'Trial '.$t['trial_code'].' - '.$t['product_name'].' ditolak final oleh Manager QAC.',
    'type'=>'rejected',
   ]);
  }
  audit_log($t['id'],'manager_approval',[],['decision'=>$decision,'comment'=>$comment,'manager_name'=>$managerName,'manager_email'=>u()['email']]);
- logActivity($decision==='Approved'?'APPROVE':'REJECT','APPROVAL',$t['id'],$t['trial_code'],$t,['decision'=>$decision,'comment'=>$comment,'manager_name'=>$managerName]);
+ logActivity($decision==='Approved'?'APPROVE':($decision==='Need Revision'?'NEED_REVISION':'REJECT'),'APPROVAL',$t['id'],$t['trial_code'],$t,['decision'=>$decision,'comment'=>$comment,'manager_name'=>$managerName]);
  redirect('/approvals');
 }
 

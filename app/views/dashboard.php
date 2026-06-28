@@ -29,8 +29,12 @@
     <span>Approved</span>
     <strong><?=h($summary['approved']??0)?></strong>
   </a>
+  <a class="summary-card" href="/trials/need-revision">
+    <span>Need Revision</span>
+    <strong><?=h($summary['need_revision']??0)?></strong>
+  </a>
   <a class="summary-card" href="/trials/rejected">
-    <span>Rejected / Need Revision</span>
+    <span>Rejected</span>
     <strong><?=h($summary['rejected']??0)?></strong>
   </a>
 </section>

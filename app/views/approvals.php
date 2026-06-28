@@ -25,8 +25,9 @@
               <div class="readonly-meta"><span>Manager QAC</span><strong><?=h(user_display_name())?></strong></div>
               <textarea name="approval_comment" placeholder="Decision comment" required></textarea>
               <input type="password" name="signature_password" placeholder="Password e-signature" required>
-              <button name="decision" value="Approved">Approve</button>
-              <button class="danger" name="decision" value="Rejected">Reject / Need Revision</button>
+              <button name="decision" value="Approved" data-confirm="Approve trial ini?">Approve</button>
+              <button class="btn btn-light" name="decision" value="Need Revision" data-confirm="Kembalikan trial ini ke Staff sebagai Need Revision?">Need Revision</button>
+              <button class="danger" name="decision" value="Rejected" data-confirm="Reject final trial ini? Trial tidak bisa direvisi lagi.">Reject</button>
             </form>
           </td>
         </tr>
@@ -36,3 +37,13 @@
   </div>
   <?php render_pagination($pagination??null); ?>
 </section>
+
+<script>
+document.querySelectorAll('.approval-form button[name="decision"]').forEach(function(button){
+  button.addEventListener('click', function(e){
+    if(!confirm(button.getAttribute('data-confirm') || 'Lanjutkan aksi ini?')){
+      e.preventDefault();
+    }
+  });
+});
+</script>

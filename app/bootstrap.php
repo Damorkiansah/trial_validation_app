@@ -81,7 +81,7 @@ function review_departments_for_user(){
  if(in_array($dept,$codes,true)) $items[]=$dept;
  return array_values(array_unique($items));
 }
-function is_reviewer(){return count(review_departments_for_user())>0;}
+function is_reviewer(){return !is_manager_qac()&&count(review_departments_for_user())>0;}
 function role_label(){
  if(is_admin()) return 'Admin';
  if(role()==='Staff') return 'Staff Trial';
@@ -461,7 +461,8 @@ function status_class($status,$final_decision=''){
  if($status==='In Review') return 'status-review';
  if($status==='Ready for Approval') return 'status-ready';
  if($status==='Approved') return 'status-approved';
- if($status==='Rejected'||$status==='Need Revision'||$final_decision==='Rejected'||$final_decision==='Need Revision') return 'status-rejected';
+ if($status==='Need Revision') return 'status-revision';
+ if($status==='Rejected'||$final_decision==='Rejected') return 'status-rejected';
  return 'status-muted';
 }
 function status_badge($status,$final_decision=''){
@@ -497,7 +498,7 @@ function scoped_trials_parts($filters=[],$status_group=null){
  $where=[];
  $params=[];
  $from='trials_header h';
- if(is_reviewer()){
+ if(is_reviewer()&&!is_staff()&&!can_approve_trials()){
   $departments=review_departments_for_user();
   $from.=' JOIN trials_review tr_scope ON tr_scope.trial_id=h.id';
   $where[]='UPPER(TRIM(tr_scope.department)) IN ('.implode(',',array_fill(0,count($departments),'?')).')';
@@ -506,8 +507,9 @@ function scoped_trials_parts($filters=[],$status_group=null){
  }
  $where[]='h.deleted_at IS NULL';
  if($status_group==='approved') $where[]='h.progress_status="Approved"';
- if($status_group==='in-review') $where[]='h.progress_status IN ("In Review","Ready for Approval")';
- if($status_group==='rejected') $where[]='(h.progress_status IN ("Rejected","Need Revision") OR h.final_decision IN ("Rejected","Need Revision"))';
+ if($status_group==='in-review') $where[]='h.progress_status="In Review"';
+ if($status_group==='need-revision') $where[]='h.progress_status="Need Revision"';
+ if($status_group==='rejected') $where[]='(h.progress_status="Rejected" OR h.final_decision="Rejected")';
  if($status_group==='waiting') $where[]='h.progress_status="Ready for Approval"';
  if($status_group==='draft') $where[]='h.progress_status="Draft"';
 
@@ -567,13 +569,14 @@ function scoped_trials_count($filters=[],$status_group=null){
 }
 function trial_summary_counts(){
  $trials=scoped_trials_query();
- $counts=['total'=>count($trials),'draft'=>0,'in_review'=>0,'ready'=>0,'approved'=>0,'rejected'=>0];
+ $counts=['total'=>count($trials),'draft'=>0,'in_review'=>0,'ready'=>0,'approved'=>0,'need_revision'=>0,'rejected'=>0];
  foreach($trials as $t){
   if($t['progress_status']==='Draft') $counts['draft']++;
   if($t['progress_status']==='In Review') $counts['in_review']++;
   if($t['progress_status']==='Ready for Approval') $counts['ready']++;
   if($t['progress_status']==='Approved') $counts['approved']++;
-  if(in_array($t['progress_status'],['Rejected','Need Revision'],true)||in_array($t['final_decision']??'', ['Rejected','Need Revision'], true)) $counts['rejected']++;
+  if($t['progress_status']==='Need Revision') $counts['need_revision']++;
+  if($t['progress_status']==='Rejected'||($t['final_decision']??'')==='Rejected') $counts['rejected']++;
  }
  return $counts;
 }
