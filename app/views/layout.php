@@ -53,10 +53,11 @@ if(!$isLogin){
   ['label'=>'Department Review Report','href'=>'/report/department-review','paths'=>['/report/department-review']],
   ['label'=>'Audit Print Log','href'=>'/report/audit-print-log','paths'=>['/report/audit-print-log']],
  ]];
- if(is_admin()) $nav[]=['label'=>'Settings','href'=>'/settings/users','icon'=>'S','paths'=>['/settings','/admin/users','/admin/notifications','/admin/activity-logs'],'children'=>[
+ if(is_admin()) $nav[]=['label'=>'Settings','href'=>'/settings/users','icon'=>'S','paths'=>['/settings','/admin/users','/admin/notifications','/admin/activity-logs','/admin/trash'],'children'=>[
   ['label'=>'Users','href'=>'/settings/users','paths'=>['/settings/users','/admin/users']],
   ['label'=>'Notifications','href'=>'/admin/notifications','paths'=>['/admin/notifications']],
   ['label'=>'Activity Logs','href'=>'/admin/activity-logs','paths'=>['/admin/activity-logs']],
+  ['label'=>'Trash','href'=>'/admin/trash','paths'=>['/admin/trash']],
  ]];
 }
 ?>

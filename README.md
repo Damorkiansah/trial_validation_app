@@ -115,4 +115,3 @@ Perubahan utama:
 =======
 # trial_validation_app
 >>>>>>> 08b66dfb967e58443bb2d1e01cc7b5a3bcb12e1a
-yooo

@@ -1,0 +1,7 @@
+.claude/
+
+# Runtime data
+storage/sessions/sess_*
+public/uploads/*
+!public/uploads/.htaccess
+!public/uploads/.gitkeep

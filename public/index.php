@@ -963,6 +963,107 @@ if(preg_match('#^/admin/users/(\d+)/delete$#',$path,$m)&&$method==='POST'){
  redirect('/settings/users');
 }
 
+if($path==='/admin/trash'){
+ if(!is_admin()) die('Admin only');
+ $filters=[
+  'q'=>trim($_GET['q']??''),
+  'deleted_by'=>trim($_GET['deleted_by']??''),
+  'date_from'=>trim($_GET['date_from']??''),
+  'date_to'=>trim($_GET['date_to']??''),
+ ];
+ $where=['h.deleted_at IS NOT NULL'];
+ $params=[];
+ if($filters['q']!==''){
+  $where[]='(h.trial_code LIKE ? OR h.product_name LIKE ? OR h.product_type LIKE ?)';
+  $like='%'.$filters['q'].'%';
+  array_push($params,$like,$like,$like);
+ }
+ if($filters['deleted_by']!==''){
+  $where[]='u_del.name LIKE ?';
+  $params[]='%'.$filters['deleted_by'].'%';
+ }
+ if($filters['date_from']!==''&&preg_match('/^\d{4}-\d{2}-\d{2}$/',$filters['date_from'])){
+  $where[]='h.deleted_at>=?';
+  $params[]=$filters['date_from'].' 00:00:00';
+ }
+ if($filters['date_to']!==''&&preg_match('/^\d{4}-\d{2}-\d{2}$/',$filters['date_to'])){
+  $where[]='h.deleted_at<=?';
+  $params[]=$filters['date_to'].' 23:59:59';
+ }
+ $countSql='SELECT COUNT(*) FROM trials_header h LEFT JOIN users u_del ON u_del.id=h.deleted_by WHERE '.implode(' AND ',$where);
+ $cs=db()->prepare($countSql);
+ $cs->execute($params);
+ $pagination=pagination_state((int)$cs->fetchColumn());
+ $sql='SELECT h.*,u_del.name AS deleted_by_name,u_del.email AS deleted_by_email,h.deleted_at,
+  u_creator.name AS creator_name
+  FROM trials_header h
+  LEFT JOIN users u_del ON u_del.id=h.deleted_by
+  LEFT JOIN users u_creator ON u_creator.email=h.created_by
+  WHERE '.implode(' AND ',$where).'
+  ORDER BY h.deleted_at DESC,h.id DESC
+  LIMIT '.(int)$pagination['per_page'].' OFFSET '.(int)$pagination['offset'];
+ $s=db()->prepare($sql);
+ $s->execute($params);
+ $items=$s->fetchAll();
+ view('admin_trash',compact('items','filters','pagination'));
+ exit;
+}
+
+if(preg_match('#^/admin/trash/restore/(\d+)$#',$path,$m)&&$method==='POST'){
+ if(!is_admin()) die('Admin only');
+ $id=(int)$m[1];
+ $t=trial($id);
+ if(!$t['deleted_at']){
+  flash('Trial ini tidak dalam status terhapus.');
+  redirect('/admin/trash');
+ }
+ db()->prepare('UPDATE trials_header SET deleted_at=NULL,deleted_by=NULL,updated_at=NOW() WHERE id=?')->execute([$id]);
+ logActivity('RESTORE','TRIAL',$id,$t['trial_code'],$t,['action'=>'restored from trash']);
+ audit_log($id,'trial_restored',$t,['action'=>'restored from trash','restored_by'=>u()['email']]);
+ createNotification([
+  'role_target'=>'Admin',
+  'trial_id'=>$id,
+  'title'=>'Trial Restored',
+  'message'=>'Trial '.$t['trial_code'].' - '.$t['product_name'].' berhasil direstore dari trash.',
+  'type'=>'info',
+ ]);
+ flash('Trial berhasil direstore.');
+ redirect('/admin/trash');
+}
+
+if(preg_match('#^/admin/trash/delete/(\d+)$#',$path,$m)&&$method==='POST'){
+ if(!is_admin()) die('Admin only');
+ $id=(int)$m[1];
+ $t=trial($id);
+ if(!$t['deleted_at']){
+  flash('Trial ini tidak dalam status terhapus.');
+  redirect('/admin/trash');
+ }
+ $confirm_token=trim($_POST['confirm_token']??'');
+ if($confirm_token!=='PERMANENT'){
+  flash('Konfirmasi tidak valid. Ketik PERMANENT untuk menghapus permanen.');
+  redirect('/admin/trash');
+ }
+ db()->beginTransaction();
+ try{
+  db()->prepare('DELETE FROM trials_results WHERE trial_id=?')->execute([$id]);
+  db()->prepare('DELETE FROM trials_weighing WHERE trial_id=?')->execute([$id]);
+  db()->prepare('DELETE FROM trials_review WHERE trial_id=?')->execute([$id]);
+  db()->prepare('DELETE FROM trial_attachment_files WHERE trial_id=?')->execute([$id]);
+  db()->prepare('DELETE FROM notifications WHERE trial_id=?')->execute([$id]);
+  db()->prepare('DELETE FROM audit_logs WHERE trial_id=?')->execute([$id]);
+  db()->prepare('DELETE FROM trials_header WHERE id=?')->execute([$id]);
+  db()->commit();
+ }catch(Exception $e){
+  db()->rollBack();
+  flash('Gagal menghapus permanen: '.$e->getMessage());
+  redirect('/admin/trash');
+ }
+ logActivity('PERMANENT_DELETE','TRIAL',$id,$t['trial_code'],$t,null);
+ flash('Trial berhasil dihapus permanen.');
+ redirect('/admin/trash');
+}
+
 if($path==='/admin/products'||$path==='/templates/products'){
  if(!can_manage_templates()) die('Admin/Staff only');
  $pagination=pagination_state((int)db()->query('SELECT COUNT(*) FROM products WHERE is_active=1 AND deleted_at IS NULL')->fetchColumn());
