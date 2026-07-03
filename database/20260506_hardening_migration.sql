@@ -3,7 +3,8 @@ USE trial_validation_system;
 ALTER TABLE trials_header
   ADD COLUMN IF NOT EXISTS revision_no INT NOT NULL DEFAULT 0 AFTER final_decision,
   ADD COLUMN IF NOT EXISTS approved_by VARCHAR(150) NULL AFTER revision_no,
-  ADD COLUMN IF NOT EXISTS approved_at DATETIME NULL AFTER approved_by,
+  ADD COLUMN IF NOT EXISTS approver_user_id INT NULL AFTER approved_by,
+  ADD COLUMN IF NOT EXISTS approved_at DATETIME NULL AFTER approver_user_id,
   ADD COLUMN IF NOT EXISTS rejected_by VARCHAR(150) NULL AFTER approved_at,
   ADD COLUMN IF NOT EXISTS rejected_at DATETIME NULL AFTER rejected_by,
   ADD COLUMN IF NOT EXISTS approval_comment TEXT NULL AFTER rejected_at;

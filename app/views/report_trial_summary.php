@@ -62,7 +62,10 @@
           <td><?=h($t['created_by'])?></td>
           <td><?=h($t['created_at'])?></td>
           <td><?=h($t['pending_with'])?></td>
-          <td><a class="btn btn-primary" href="/trials/<?=$t['id']?>/report">View Summary</a> <button class="btn btn-light" onclick="window.print()">Print</button></td>
+          <td>
+            <a class="btn btn-primary" href="/trials/<?=$t['id']?>/report">View Summary</a>
+            <button class="btn btn-light" onclick="window.print()">Print</button>
+          </td>
         </tr>
       <?php endforeach; ?>
       <?php if(!$items): ?><tr><td colspan="12" class="empty-state">Tidak ada data trial.</td></tr><?php endif; ?>

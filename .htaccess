@@ -3,9 +3,19 @@ DirectoryIndex public/index.php
 
 RewriteEngine On
 
-RewriteRule ^$ public/index.php [QSA,L]
-RewriteRule ^index\.php$ public/index.php [QSA,L]
+# Serve uploads folder directly from public/uploads
+RewriteRule ^uploads/(.*)$ public/uploads/$1 [L]
 
+# Serve assets folder directly
+RewriteRule ^assets/(.*)$ public/assets/$1 [L]
+
+# Serve stylesheet directly
+RewriteRule ^style\.css$ public/style.css [L]
+
+# Serve index.php
+RewriteRule ^index\.php$ public/index.php [L]
+
+# Route everything else to public/index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.+)$ public/$1 [QSA,L]
+RewriteRule ^(.*)$ public/index.php [QSA,L]

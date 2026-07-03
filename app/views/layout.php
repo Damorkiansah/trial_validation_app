@@ -19,6 +19,7 @@ $pageMap=[
  '/notifications'=>'Notifications',
  '/admin/notifications'=>'Admin Notifications',
  '/admin/activity-logs'=>'Activity Logs',
+ '/admin/access-rights'=>'Hak Akses',
 ];
 $topTitle=$pageTitle??($pageMap[$currentPath]??'Trial Validation System');
 $isActive=function($paths)use($currentPath){
@@ -54,10 +55,13 @@ if(!$isLogin){
   ['label'=>'Audit Print Log','href'=>'/report/audit-print-log','paths'=>['/report/audit-print-log']],
  ]];
  if(is_admin()) $nav[]=['label'=>'Settings','href'=>'/settings/users','icon'=>'S','paths'=>['/settings','/admin/users','/admin/notifications','/admin/activity-logs','/admin/trash'],'children'=>[
-  ['label'=>'Users','href'=>'/settings/users','paths'=>['/settings/users','/admin/users']],
-  ['label'=>'Notifications','href'=>'/admin/notifications','paths'=>['/admin/notifications']],
-  ['label'=>'Activity Logs','href'=>'/admin/activity-logs','paths'=>['/admin/activity-logs']],
+ ['label'=>'Users','href'=>'/settings/users','paths'=>['/settings/users','/admin/users']],
+ ['label'=>'Notifications','href'=>'/admin/notifications','paths'=>['/admin/notifications']],
+ ['label'=>'Activity Logs','href'=>'/admin/activity-logs','paths'=>['/admin/activity-logs']],
   ['label'=>'Trash','href'=>'/admin/trash','paths'=>['/admin/trash']],
+ ]];
+ if(is_super_admin()) $nav[]=['label'=>'Super Admin','href'=>'/admin/access-rights','icon'=>'U','paths'=>['/admin/access-rights'],'children'=>[
+  ['label'=>'Hak Akses','href'=>'/admin/access-rights','paths'=>['/admin/access-rights']],
  ]];
 }
 ?>

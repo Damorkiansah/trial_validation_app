@@ -34,6 +34,16 @@
                 </label>
               <?php endforeach; ?>
             </div>
+            <label>Approver
+              <select name="approver_user_id" class="select2" required>
+                <option value="">Select Approver</option>
+                <?php foreach(($approvers??[]) as $approver): ?>
+                  <option value="<?=(int)$approver['id']?>" <?=((int)($t['approver_user_id']??0)===(int)$approver['id'])?'selected':''?>>
+                    <?=h(($approver['name']?:$approver['email']).' - '.$approver['role'])?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </label>
             <p class="review-modal-error" id="review-modal-error">Please select at least one review department.</p>
             <div class="filter-actions">
               <button type="button" class="btn btn-light" data-review-modal-close>Cancel</button>
@@ -68,7 +78,7 @@
     <div><span>Created By</span><strong><?=h($t['created_by'])?></strong></div>
     <?php $displayDecision=in_array($t['progress_status'],['Approved','Rejected'],true)?($t['final_decision']?:$t['progress_status']):$t['progress_status']; ?>
     <div><span>Approval Status</span><strong><?=h($displayDecision)?></strong></div>
-    <div><span>Manager QAC Name</span><strong><?=h(display_person_name($t['approved_by']?:($t['rejected_by']?:''))?:'-')?></strong></div>
+    <div><span>Approval Authority</span><strong><?=h(display_person_name($t['approved_by']?:($t['rejected_by']?:''))?:'-')?></strong></div>
   </section>
 
   <h3>Header Detail</h3>
@@ -78,6 +88,9 @@
     <tr><th>Reason</th><td colspan="3"><?=h($t['reason']??'')?></td></tr>
     <tr><th>B.O.M</th><td colspan="3"><?=nl2br(h($t['bom']??''))?></td></tr>
     <tr><th>Status</th><td><?=h($t['progress_status'])?></td><th>Pending With</th><td><?=h($t['pending_with'])?></td></tr>
+    <?php if(!empty($t['approver_user_id'])): ?>
+      <tr><th>Selected Approver</th><td colspan="3"><?=h(($selectedApprover['name']??'')?:($selectedApprover['email']??$t['approver_user_id']))?></td></tr>
+    <?php endif; ?>
     <tr><th>Revision No</th><td><?=h($t['revision_no']??0)?></td><th>Final Decision</th><td><?=h($t['final_decision'])?></td></tr>
   </table>
 
@@ -221,6 +234,15 @@ function printTrialReport(){
     if(!form.querySelector('input[name="departments[]"]:checked')){
       e.preventDefault();
       if(error) error.classList.add('show');
+      return;
+    }
+    const approver=form.querySelector('select[name="approver_user_id"]');
+    if(approver&&!approver.value){
+      e.preventDefault();
+      if(error){
+        error.textContent='Please select an approver.';
+        error.classList.add('show');
+      }
     }
   });
 })();

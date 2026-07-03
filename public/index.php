@@ -1,4 +1,6 @@
 <?php
+
+
 require __DIR__.'/../app/bootstrap.php';
 
 $path=normalize_request_path(parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH));
@@ -269,20 +271,20 @@ if($path==='/report/department-review'){
  $cs=db()->prepare($countSql);
  $cs->execute($params);
  $pagination=pagination_state((int)$cs->fetchColumn());
- $sql='SELECT h.id,h.trial_code,h.product_name,h.pending_with,
-  COALESCE(MAX(CASE WHEN tr.department="PRD" THEN tr.status END),"N/A") PRD,
-  COALESCE(MAX(CASE WHEN tr.department="RNI" THEN tr.status END),"N/A") RNI,
-  COALESCE(MAX(CASE WHEN tr.department="QAC" THEN tr.status END),"N/A") QAC,
-  COALESCE(MAX(CASE WHEN tr.department="PRNI" THEN tr.status END),"N/A") PRNI,
-  COALESCE(MAX(CASE WHEN tr.department="PI" THEN tr.status END),"N/A") PI,
-  h.progress_status
-  FROM '.$from;
+ $reviewDepartments=reviewer_department_codes();
+ $selectDepartments=[];
+ foreach($reviewDepartments as $dept){
+  $alias='dept_'.preg_replace('/[^A-Z0-9_]/','_',normalize_department($dept));
+  $selectDepartments[]='COALESCE(MAX(CASE WHEN UPPER(TRIM(tr.department))='.db()->quote(normalize_department($dept)).' THEN tr.status END),"N/A") AS '.$alias;
+ }
+ $departmentSql=$selectDepartments?','.implode(',',$selectDepartments):'';
+ $sql='SELECT h.id,h.trial_code,h.product_name,h.pending_with'.$departmentSql.',h.progress_status FROM '.$from;
  if($where) $sql.=' WHERE '.implode(' AND ',$where);
  $sql.=' GROUP BY h.id,h.trial_code,h.product_name,h.pending_with,h.progress_status ORDER BY h.updated_at DESC,h.id DESC LIMIT '.(int)$pagination['per_page'].' OFFSET '.(int)$pagination['offset'];
  $s=db()->prepare($sql);
  $s->execute($params);
  $items=$s->fetchAll();
- view('report_department_review',compact('items','pagination'));
+ view('report_department_review',compact('items','pagination','reviewDepartments'));
  exit;
 }
 
@@ -702,8 +704,15 @@ if(preg_match('#^/trials/(\d+)/report$#',$path,$m)){
  $rs=db()->prepare('SELECT * FROM trials_review WHERE trial_id=? ORDER BY review_round,department');
  $rs->execute([$t['id']]);
  $reviews=$rs->fetchAll();
+ $approvers=db()->query('SELECT id,name,email,role FROM users WHERE is_active=1 AND deleted_at IS NULL ORDER BY role,name,email')->fetchAll();
+ $selectedApprover=null;
+ if(!empty($t['approver_user_id'])){
+  $selectedApproverStmt=db()->prepare('SELECT id,name,email,role FROM users WHERE id=?');
+  $selectedApproverStmt->execute([(int)$t['approver_user_id']]);
+  $selectedApprover=$selectedApproverStmt->fetch();
+ }
  $completeness=trial_completeness($t);
- view('report',compact('t','results','weigh','files','reviews','completeness'));
+ view('report',compact('t','results','weigh','files','reviews','approvers','selectedApprover','completeness'));
  exit;
 }
 
@@ -719,7 +728,15 @@ if(preg_match('#^/trials/(\d+)/submit-review$#',$path,$m)&&$method==='POST'){
  $allowedDepartments=reviewer_department_codes();
  $departments=array_values(array_unique(array_filter(array_map('normalize_department',$_POST['departments']??[]),fn($d)=>in_array($d,$allowedDepartments,true))));
  if(!$departments){
-  flash('Please select at least one review department.');
+ flash('Please select at least one review department.');
+  redirect('/trials/'.$t['id'].'/report');
+ }
+ $approverId=(int)($_POST['approver_user_id']??0);
+ $approverStmt=db()->prepare('SELECT id,name,email,role FROM users WHERE id=? AND is_active=1 AND deleted_at IS NULL');
+ $approverStmt->execute([$approverId]);
+ $approver=$approverStmt->fetch();
+ if(!$approver){
+  flash('Please select a valid approver.');
   redirect('/trials/'.$t['id'].'/report');
  }
  db()->beginTransaction();
@@ -727,8 +744,8 @@ if(preg_match('#^/trials/(\d+)/submit-review$#',$path,$m)&&$method==='POST'){
   db()->prepare('INSERT INTO trials_review(trial_id,department,review_round,status,is_required) VALUES(?,?,?,"Pending",1) ON DUPLICATE KEY UPDATE status="Pending",is_required=1,reviewer_name=NULL,reviewer_email=NULL,comment=NULL,reviewed_at=NULL')
    ->execute([$t['id'],$d,$round]);
  }
- db()->prepare('UPDATE trials_header SET progress_status="In Review",current_step="Review",pending_with=?,updated_at=NOW() WHERE id=?')
-  ->execute([implode(',',$departments),$t['id']]);
+ db()->prepare('UPDATE trials_header SET progress_status="In Review",current_step="Review",pending_with=?,approver_user_id=?,updated_at=NOW() WHERE id=?')
+  ->execute([implode(',',$departments),$approver['id'],$t['id']]);
  db()->commit();
  foreach($departments as $d){
   createNotification([
@@ -748,8 +765,10 @@ if(preg_match('#^/trials/(\d+)/submit-review$#',$path,$m)&&$method==='POST'){
   'type'=>'info',
  ]);
  audit_log($t['id'],'submitted_for_review',[],['round'=>$round,'departments'=>$departments]);
- logActivity('SUBMIT_REVIEW','TRIAL',$t['id'],$t['trial_code'],null,['round'=>$round,'departments'=>$departments]);
+ audit_log($t['id'],'approval_assignee_selected',[],['approver_user_id'=>$approver['id'],'approver_email'=>$approver['email'],'approver_name'=>$approver['name']]);
+ logActivity('SUBMIT_REVIEW','TRIAL',$t['id'],$t['trial_code'],null,['round'=>$round,'departments'=>$departments,'approver'=>$approver['email']]);
  logActivity('SELECT_REVIEW_DEPARTMENT','REVIEW',$t['id'],$t['trial_code'],null,['departments'=>$departments]);
+ logActivity('SELECT_APPROVER','APPROVAL',$t['id'],$t['trial_code'],null,['approver'=>$approver['email']]);
  redirect('/trials/'.$t['id'].'/report');
 }
 
@@ -788,9 +807,14 @@ if(preg_match('#^/review/(\d+)/save$#',$path,$m)&&$method==='POST'){
  $p->execute([$review['trial_id'],$round]);
  $pending=$p->fetchAll(PDO::FETCH_COLUMN);
  if(!$pending){
-  db()->prepare('UPDATE trials_header SET progress_status="Ready for Approval",current_step="Approval",pending_with="Manager QAC",updated_at=NOW() WHERE id=?')->execute([$review['trial_id']]);
+  $trialApproverStmt=db()->prepare('SELECT h.approver_user_id,u.name,u.email FROM trials_header h LEFT JOIN users u ON u.id=h.approver_user_id WHERE h.id=?');
+  $trialApproverStmt->execute([$review['trial_id']]);
+  $trialApprover=$trialApproverStmt->fetch();
+  $pendingApprover=trim((string)($trialApprover['name']??''))?:($trialApprover['email']??'Manager QAC');
+  db()->prepare('UPDATE trials_header SET progress_status="Ready for Approval",current_step="Approval",pending_with=?,updated_at=NOW() WHERE id=?')->execute([$pendingApprover,$review['trial_id']]);
   createNotification([
-   'role_target'=>'Manager QAC',
+   'user_id'=>$trialApprover['approver_user_id']??null,
+   'role_target'=>empty($trialApprover['approver_user_id'])?'Manager QAC':null,
    'trial_id'=>$review['trial_id'],
    'title'=>'Trial Waiting Final Approval',
    'message'=>'Trial '.$review['trial_code'].' - '.$review['product_name'].' sudah selesai direview dan menunggu final approval.',
@@ -812,12 +836,24 @@ if(preg_match('#^/review/(\d+)/save$#',$path,$m)&&$method==='POST'){
 }
 
 if($path==='/approvals'||$path==='/approval'){
- if(role()!=='Manager QAC'&&!is_admin()) die('Forbidden');
- $total=(int)db()->query('SELECT COUNT(*) FROM trials_header WHERE progress_status="Ready for Approval" AND deleted_at IS NULL')->fetchColumn();
+ if(!can_approve_trials()) die('Forbidden');
+ $approvalWhere=['progress_status="Ready for Approval"','h.deleted_at IS NULL'];
+ $approvalParams=[];
+ // Admin, Manager QAC, Team Leader, Part Leader, Team Leader QA: see all trials
+ $canSeeAll = is_admin() || is_manager_qac() || in_array(role(), ['Team Leader', 'Part Leader', 'Team Leader QA'], true);
+ if(!$canSeeAll){
+  $approvalWhere[]='h.approver_user_id=?';
+  $approvalParams[]=(int)(u()['id']??0);
+ }
+ // Admin, Manager QAC, Team Leader QA: see all trials
+ $countApproval=db()->prepare('SELECT COUNT(*) FROM trials_header h WHERE '.implode(' AND ',$approvalWhere));
+ $countApproval->execute($approvalParams);
+ $total=(int)$countApproval->fetchColumn();
  $pagination=pagination_state($total);
- $s=db()->prepare('SELECT * FROM trials_header WHERE progress_status="Ready for Approval" AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT ? OFFSET ?');
- $s->bindValue(1,$pagination['per_page'],PDO::PARAM_INT);
- $s->bindValue(2,$pagination['offset'],PDO::PARAM_INT);
+ $s=db()->prepare('SELECT h.*, u_approver.name AS approver_name, u_approver.email AS approver_email FROM trials_header h LEFT JOIN users u_approver ON u_approver.id=h.approver_user_id WHERE '.implode(' AND ',$approvalWhere).' ORDER BY h.updated_at DESC LIMIT ? OFFSET ?');
+ foreach($approvalParams as $i=>$param) $s->bindValue($i+1,$param,PDO::PARAM_INT);
+ $s->bindValue(count($approvalParams)+1,$pagination['per_page'],PDO::PARAM_INT);
+ $s->bindValue(count($approvalParams)+2,$pagination['offset'],PDO::PARAM_INT);
  $s->execute();
  $items=$s->fetchAll();
  view('approvals',compact('items','pagination'));
@@ -825,10 +861,18 @@ if($path==='/approvals'||$path==='/approval'){
 }
 
 if(preg_match('#^/trials/(\d+)/approval$#',$path,$m)&&$method==='POST'){
- if(role()!=='Manager QAC'&&!is_admin()) die('Forbidden');
+ if(!can_approve_trials()) die('Forbidden');
  $t=trial($m[1]);
  if($t['progress_status']!=='Ready for Approval'){
   flash('Trial belum siap approval.');
+  redirect('/approvals');
+ }
+ if(!is_admin()&&!is_manager_qac()&&!empty($t['approver_user_id'])&&(int)$t['approver_user_id']!==(int)(u()['id']??0)){
+  flash('Trial ini ditugaskan ke approver lain.');
+  redirect('/approvals');
+ }
+ if(!is_admin()&&!is_manager_qac()&&empty($t['approver_user_id'])){
+  flash('Trial ini belum ditugaskan kepada Anda.');
   redirect('/approvals');
  }
  $decision=$_POST['decision']??'';
@@ -918,20 +962,78 @@ if(preg_match('#^/trials/(\d+)/approval$#',$path,$m)&&$method==='POST'){
 
 if($path==='/admin/users'||$path==='/settings/users'){
  if(!is_admin()) die('Admin only');
- $pagination=pagination_state((int)db()->query('SELECT COUNT(*) FROM users WHERE deleted_at IS NULL')->fetchColumn());
- $s=db()->prepare('SELECT * FROM users WHERE deleted_at IS NULL ORDER BY role,name LIMIT ? OFFSET ?');
- $s->bindValue(1,$pagination['per_page'],PDO::PARAM_INT);
- $s->bindValue(2,$pagination['offset'],PDO::PARAM_INT);
+ $filters=['q'=>trim($_GET['q']??'')];
+ $where=['deleted_at IS NULL'];
+ $params=[];
+ if($filters['q']!==''){
+  $where[]='(name LIKE ? OR email LIKE ? OR role LIKE ? OR department LIKE ?)';
+  $like='%'.$filters['q'].'%';
+  array_push($params,$like,$like,$like,$like);
+ }
+ $countStmt=db()->prepare('SELECT COUNT(*) FROM users WHERE '.implode(' AND ',$where));
+ $countStmt->execute($params);
+ $pagination=pagination_state((int)$countStmt->fetchColumn());
+ $s=db()->prepare('SELECT * FROM users WHERE '.implode(' AND ',$where).' ORDER BY role,name LIMIT ? OFFSET ?');
+ foreach($params as $i=>$param) $s->bindValue($i+1,$param);
+ $s->bindValue(count($params)+1,$pagination['per_page'],PDO::PARAM_INT);
+ $s->bindValue(count($params)+2,$pagination['offset'],PDO::PARAM_INT);
  $s->execute();
  $users=$s->fetchAll();
- view('admin_users',compact('users','pagination'));
+ $roleCategories=role_categories();
+ $hasSuperAdmin=(int)db()->query("SELECT COUNT(*) FROM users WHERE role='Super Admin' AND is_active=1 AND deleted_at IS NULL")->fetchColumn()>0;
+ if(!is_super_admin()&&$hasSuperAdmin) $roleCategories=array_values(array_filter($roleCategories,fn($role)=>$role!=='Super Admin'));
+ $customRoleCategories=opts('role_category');
+ view('admin_users',compact('users','pagination','roleCategories','customRoleCategories','filters'));
  exit;
+}
+
+if($path==='/admin/users/role-categories/save'&&$method==='POST'){
+ if(!is_super_admin()) die('Super Admin only');
+ $name=trim($_POST['name']??'');
+ $sort=(int)($_POST['sort_order']??0);
+ if($name===''){
+  flash('Nama kategori role wajib diisi.');
+  redirect('/settings/users');
+ }
+ if(strlen($name)>50){
+  flash('Nama kategori hak akses maksimal 50 karakter.');
+  redirect('/settings/users');
+ }
+ try{
+  db()->prepare('INSERT INTO master_options(type,name,sort_order,is_active) VALUES("role_category",?,?,1) ON DUPLICATE KEY UPDATE sort_order=VALUES(sort_order),is_active=1,deleted_at=NULL,deleted_by=NULL')
+   ->execute([$name,$sort]);
+ }catch(PDOException $e){
+  flash('Kategori role tersebut sudah ada.');
+  redirect('/settings/users');
+ }
+ audit_log(null,'master_option_saved',[],['type'=>'role_category','name'=>$name,'sort_order'=>$sort]);
+ logActivity('CREATE','MASTER',db()->lastInsertId(),'role_category - '.$name,null,['type'=>'role_category','name'=>$name,'sort_order'=>$sort]);
+ redirect('/settings/users');
+}
+
+if(preg_match('#^/admin/users/role-categories/(\d+)/delete$#',$path,$m)&&$method==='POST'){
+ if(!is_super_admin()) die('Super Admin only');
+ $id=(int)$m[1];
+ $s=db()->prepare('SELECT * FROM master_options WHERE id=? AND type="role_category"');
+ $s->execute([$id]);
+ $old=$s->fetch();
+ if($old){
+  db()->prepare('UPDATE master_options SET is_active=0,deleted_at=NOW(),deleted_by=? WHERE id=?')->execute([u()['id'],$id]);
+  audit_log(null,'master_option_soft_deleted',[],['id'=>$id]);
+  logActivity('SOFT_DELETE','MASTER',$id,'role_category - '.($old['name']??''),$old,null);
+ }
+ redirect('/settings/users');
 }
 
 if($path==='/admin/users/save'&&$method==='POST'){
  if(!is_admin()) die('Admin only');
  $role=trim($_POST['role']??'');
  $department=normalize_department($_POST['department']??'');
+ $hasSuperAdmin=(int)db()->query("SELECT COUNT(*) FROM users WHERE role='Super Admin' AND is_active=1 AND deleted_at IS NULL")->fetchColumn()>0;
+ if($role==='Super Admin'&&!is_super_admin()&&$hasSuperAdmin){
+  flash('Hanya Super Admin yang bisa membuat atau memberikan role Super Admin.');
+  redirect('/settings/users');
+ }
  if(in_array(normalize_department($role),reviewer_department_codes(),true)){
   $role=normalize_department($role);
   $department=$role;
@@ -943,6 +1045,10 @@ if($path==='/admin/users/save'&&$method==='POST'){
  $check=db()->prepare('SELECT * FROM users WHERE email=?');
  $check->execute([$_POST['email']]);
  $old=$check->fetch();
+ if($old&&($old['role']??'')==='Super Admin'&&!is_super_admin()){
+  flash('Hanya Super Admin yang bisa mengubah akun Super Admin.');
+  redirect('/settings/users');
+ }
  db()->prepare('INSERT INTO users(name,email,password_hash,role,department,is_active) VALUES(?,?,?,?,?,1) ON DUPLICATE KEY UPDATE name=VALUES(name),role=VALUES(role),department=VALUES(department),password_hash=VALUES(password_hash),is_active=1,deleted_at=NULL,deleted_by=NULL')
   ->execute([$_POST['name'],$_POST['email'],$hash,$role,$department]);
  audit_log(null,'admin_user_saved',[],['email'=>$_POST['email'],'role'=>$role,'department'=>$department]);
@@ -957,10 +1063,187 @@ if(preg_match('#^/admin/users/(\d+)/delete$#',$path,$m)&&$method==='POST'){
  $s->execute([$id]);
  $old=$s->fetch();
  if($old){
+  if(($old['role']??'')==='Super Admin'&&!is_super_admin()){
+   flash('Hanya Super Admin yang bisa menghapus akun Super Admin.');
+   redirect('/settings/users');
+  }
   db()->prepare('UPDATE users SET is_active=0,deleted_at=NOW(),deleted_by=? WHERE id=?')->execute([u()['id'],$id]);
   logActivity('SOFT_DELETE','USER',$id,$old['email']??'',$old,null);
  }
  redirect('/settings/users');
+}
+
+if($path==='/admin/access-rights'){
+ if(!is_super_admin()) die('Super Admin only');
+ $filters=['q'=>trim($_GET['q']??'')];
+ $where=['deleted_at IS NULL'];
+ $params=[];
+ if($filters['q']!==''){
+  $where[]='(name LIKE ? OR email LIKE ? OR role LIKE ? OR department LIKE ?)';
+  $like='%'.$filters['q'].'%';
+  array_push($params,$like,$like,$like,$like);
+ }
+ $countStmt=db()->prepare('SELECT COUNT(*) FROM users WHERE '.implode(' AND ',$where));
+ $countStmt->execute($params);
+ $pagination=pagination_state((int)$countStmt->fetchColumn());
+ $s=db()->prepare('SELECT * FROM users WHERE '.implode(' AND ',$where).' ORDER BY role,name LIMIT ? OFFSET ?');
+ foreach($params as $i=>$param) $s->bindValue($i+1,$param);
+ $s->bindValue(count($params)+1,$pagination['per_page'],PDO::PARAM_INT);
+ $s->bindValue(count($params)+2,$pagination['offset'],PDO::PARAM_INT);
+ $s->execute();
+ $users=$s->fetchAll();
+ $roleCategories=role_categories();
+ $customRoleCategories=opts('role_category');
+ $reviewerDepartments=reviewer_department_codes();
+ $customReviewerDepartments=opts('reviewer_department');
+ $draftTrials=db()->query('SELECT id,trial_code,product_name,created_by,created_at FROM trials_header WHERE progress_status="Draft" AND deleted_at IS NULL ORDER BY updated_at DESC,id DESC LIMIT 100')->fetchAll();
+ $staffUsers=db()->query('SELECT id,name,email FROM users WHERE role="Staff" AND is_active=1 AND deleted_at IS NULL ORDER BY name,email')->fetchAll();
+ $draftPermissions=[];
+ $permissionTableReady=true;
+ try{
+  $draftPermissions=db()->query('SELECT tep.*,h.trial_code,h.product_name,h.created_by AS owner_email,u.name AS user_name,u.email AS user_email,g.name AS granted_by_name,g.email AS granted_by_email
+   FROM trial_edit_permissions tep
+   JOIN trials_header h ON h.id=tep.trial_id
+   JOIN users u ON u.id=tep.user_id
+   LEFT JOIN users g ON g.id=tep.granted_by
+   WHERE tep.can_edit=1 AND tep.revoked_at IS NULL AND h.deleted_at IS NULL
+   ORDER BY tep.granted_at DESC,tep.id DESC')->fetchAll();
+ }catch(Exception $e){
+  $permissionTableReady=false;
+ }
+ view('admin_access_rights',compact('users','pagination','filters','roleCategories','customRoleCategories','reviewerDepartments','customReviewerDepartments','draftTrials','staffUsers','draftPermissions','permissionTableReady'));
+ exit;
+}
+
+if($path==='/admin/access-rights/draft-permissions/grant'&&$method==='POST'){
+ if(!is_super_admin()) die('Super Admin only');
+ $trialId=(int)($_POST['trial_id']??0);
+ $userId=(int)($_POST['user_id']??0);
+ $trialStmt=db()->prepare('SELECT * FROM trials_header WHERE id=? AND progress_status="Draft" AND deleted_at IS NULL');
+ $trialStmt->execute([$trialId]);
+ $trialRow=$trialStmt->fetch();
+ $userStmt=db()->prepare('SELECT * FROM users WHERE id=? AND role="Staff" AND is_active=1 AND deleted_at IS NULL');
+ $userStmt->execute([$userId]);
+ $targetUser=$userStmt->fetch();
+ if(!$trialRow||!$targetUser){
+  flash('Draft report atau user Staff tidak valid.');
+  redirect('/admin/access-rights');
+ }
+ if(strcasecmp((string)$trialRow['created_by'],(string)$targetUser['email'])===0){
+  flash('Owner sudah memiliki akses edit Draft report tersebut.');
+  redirect('/admin/access-rights');
+ }
+ try{
+  db()->prepare('INSERT INTO trial_edit_permissions(trial_id,user_id,can_edit,granted_by,granted_at) VALUES(?,?,1,?,NOW()) ON DUPLICATE KEY UPDATE can_edit=1,granted_by=VALUES(granted_by),granted_at=NOW(),revoked_by=NULL,revoked_at=NULL')
+   ->execute([$trialId,$userId,u()['id']??null]);
+ }catch(Exception $e){
+  flash('Tabel permission belum tersedia. Jalankan migration database/20260702_trial_edit_permissions.sql.');
+  redirect('/admin/access-rights');
+ }
+ audit_log($trialId,'trial_edit_permission_granted',[],[
+  'trial_code'=>$trialRow['trial_code'],
+  'owner'=>$trialRow['created_by'],
+  'granted_to'=>$targetUser['email'],
+  'granted_by'=>u()['email']??null,
+ ]);
+ logActivity('GRANT_PERMISSION','TRIAL',$trialId,$trialRow['trial_code'],null,['granted_to'=>$targetUser['email'],'permission'=>'edit_draft']);
+ flash('Izin edit Draft report berhasil diberikan.');
+ redirect('/admin/access-rights');
+}
+
+if(preg_match('#^/admin/access-rights/draft-permissions/(\d+)/revoke$#',$path,$m)&&$method==='POST'){
+ if(!is_super_admin()) die('Super Admin only');
+ $id=(int)$m[1];
+ try{
+  $s=db()->prepare('SELECT tep.*,h.trial_code,h.created_by,u.email AS user_email FROM trial_edit_permissions tep JOIN trials_header h ON h.id=tep.trial_id JOIN users u ON u.id=tep.user_id WHERE tep.id=? AND tep.revoked_at IS NULL');
+  $s->execute([$id]);
+  $old=$s->fetch();
+  if($old){
+   db()->prepare('UPDATE trial_edit_permissions SET can_edit=0,revoked_by=?,revoked_at=NOW() WHERE id=?')->execute([u()['id']??null,$id]);
+   audit_log((int)$old['trial_id'],'trial_edit_permission_revoked',$old,[
+    'trial_code'=>$old['trial_code'],
+    'owner'=>$old['created_by'],
+    'revoked_from'=>$old['user_email'],
+    'revoked_by'=>u()['email']??null,
+   ]);
+   logActivity('REVOKE_PERMISSION','TRIAL',$old['trial_id'],$old['trial_code'],$old,['revoked_from'=>$old['user_email'],'permission'=>'edit_draft']);
+   flash('Izin edit Draft report berhasil dicabut.');
+  }
+ }catch(Exception $e){
+  flash('Tabel permission belum tersedia. Jalankan migration database/20260702_trial_edit_permissions.sql.');
+ }
+ redirect('/admin/access-rights');
+}
+
+if($path==='/admin/access-rights/reviewer-departments/save'&&$method==='POST'){
+ if(!is_super_admin()) die('Super Admin only');
+ $name=normalize_department($_POST['name']??'');
+ $sort=(int)($_POST['sort_order']??0);
+ if($name===''){
+  flash('Nama kategori reviewer wajib diisi.');
+  redirect('/admin/access-rights');
+ }
+ if(strlen($name)>50){
+  flash('Nama kategori reviewer maksimal 50 karakter.');
+  redirect('/admin/access-rights');
+ }
+ try{
+  db()->prepare('INSERT INTO master_options(type,name,sort_order,is_active) VALUES("reviewer_department",?,?,1) ON DUPLICATE KEY UPDATE sort_order=VALUES(sort_order),is_active=1,deleted_at=NULL,deleted_by=NULL')
+   ->execute([$name,$sort]);
+ }catch(PDOException $e){
+  flash('Kategori reviewer tersebut sudah ada.');
+  redirect('/admin/access-rights');
+ }
+ audit_log(null,'master_option_saved',[],['type'=>'reviewer_department','name'=>$name,'sort_order'=>$sort]);
+ logActivity('CREATE','MASTER',db()->lastInsertId(),'reviewer_department - '.$name,null,['type'=>'reviewer_department','name'=>$name,'sort_order'=>$sort]);
+ redirect('/admin/access-rights');
+}
+
+if(preg_match('#^/admin/access-rights/reviewer-departments/(\d+)/delete$#',$path,$m)&&$method==='POST'){
+ if(!is_super_admin()) die('Super Admin only');
+ $id=(int)$m[1];
+ $s=db()->prepare('SELECT * FROM master_options WHERE id=? AND type="reviewer_department"');
+ $s->execute([$id]);
+ $old=$s->fetch();
+ if($old){
+  db()->prepare('UPDATE master_options SET is_active=0,deleted_at=NOW(),deleted_by=? WHERE id=?')->execute([u()['id'],$id]);
+  audit_log(null,'master_option_soft_deleted',[],['id'=>$id]);
+  logActivity('SOFT_DELETE','MASTER',$id,'reviewer_department - '.($old['name']??''),$old,null);
+ }
+ redirect('/admin/access-rights');
+}
+
+if(preg_match('#^/admin/access-rights/users/(\d+)/role$#',$path,$m)&&$method==='POST'){
+ if(!is_super_admin()) die('Super Admin only');
+ $id=(int)$m[1];
+ if($id===(int)(u()['id']??0)){
+  flash('Tidak bisa mengubah hak akses akun sendiri dari halaman ini.');
+  redirect('/admin/access-rights');
+ }
+ $role=trim($_POST['role']??'');
+ $department=normalize_department($_POST['department']??'');
+ if($role===''||!in_array($role,role_categories(),true)){
+  flash('Kategori hak akses tidak valid.');
+  redirect('/admin/access-rights');
+ }
+ if(in_array(normalize_department($role),reviewer_department_codes(),true)){
+  $role=normalize_department($role);
+  $department=$role;
+ }elseif($department===''){
+  $department=normalize_department($role);
+ }
+ $s=db()->prepare('SELECT * FROM users WHERE id=? AND deleted_at IS NULL');
+ $s->execute([$id]);
+ $old=$s->fetch();
+ if(!$old){
+  flash('User tidak ditemukan.');
+  redirect('/admin/access-rights');
+ }
+ db()->prepare('UPDATE users SET role=?,department=? WHERE id=?')->execute([$role,$department,$id]);
+ audit_log(null,'admin_user_saved',$old,['id'=>$id,'email'=>$old['email'],'role'=>$role,'department'=>$department]);
+ logActivity('UPDATE','USER',$id,$old['email']??'',$old,['role'=>$role,'department'=>$department]);
+ flash('Hak akses user berhasil diperbarui.');
+ redirect('/admin/access-rights');
 }
 
 if($path==='/admin/trash'){
@@ -1046,6 +1329,7 @@ if(preg_match('#^/admin/trash/delete/(\d+)$#',$path,$m)&&$method==='POST'){
  }
  db()->beginTransaction();
  try{
+  db()->prepare('DELETE FROM trial_edit_permissions WHERE trial_id=?')->execute([$id]);
   db()->prepare('DELETE FROM trials_results WHERE trial_id=?')->execute([$id]);
   db()->prepare('DELETE FROM trials_weighing WHERE trial_id=?')->execute([$id]);
   db()->prepare('DELETE FROM trials_review WHERE trial_id=?')->execute([$id]);
@@ -1126,8 +1410,10 @@ if(preg_match('#^/(admin|templates)/products/(\d+)/delete$#',$path,$m)&&$method=
 
 if($path==='/admin/masters'||$path==='/templates/master'){
  if(!can_manage_master()) die('Admin/Staff only');
- $pagination=pagination_state((int)db()->query('SELECT COUNT(*) FROM master_options WHERE is_active=1 AND deleted_at IS NULL')->fetchColumn());
- $s=db()->prepare('SELECT * FROM master_options WHERE is_active=1 AND deleted_at IS NULL ORDER BY type,sort_order,name LIMIT ? OFFSET ?');
+ $masterWhere=['is_active=1','deleted_at IS NULL'];
+ if(!is_super_admin()) $masterWhere[]='type NOT IN ("role_category","reviewer_department")';
+ $pagination=pagination_state((int)db()->query('SELECT COUNT(*) FROM master_options WHERE '.implode(' AND ',$masterWhere))->fetchColumn());
+ $s=db()->prepare('SELECT * FROM master_options WHERE '.implode(' AND ',$masterWhere).' ORDER BY type,sort_order,name LIMIT ? OFFSET ?');
  $s->bindValue(1,$pagination['per_page'],PDO::PARAM_INT);
  $s->bindValue(2,$pagination['offset'],PDO::PARAM_INT);
  $s->execute();
@@ -1137,6 +1423,7 @@ if($path==='/admin/masters'||$path==='/templates/master'){
   $s=db()->prepare('SELECT * FROM master_options WHERE id=? AND is_active=1');
   $s->execute([(int)$_GET['edit']]);
   $editMaster=$s->fetch();
+  if($editMaster&&in_array($editMaster['type'],['role_category','reviewer_department'],true)&&!is_super_admin()) $editMaster=null;
  }
  view('admin_masters',compact('opts','editMaster','pagination'));
  exit;
@@ -1149,8 +1436,13 @@ if(in_array($path,['/admin/masters/save','/templates/master/save'],true)&&$metho
  $name=trim($_POST['name']??'');
  $sort=(int)($_POST['sort_order']??0);
  $allowedTypes=['validation_category','validation_scope','machine_used','product_type','attachment_category'];
+ if(is_super_admin()) $allowedTypes=array_merge($allowedTypes,['role_category','reviewer_department']);
  if(!in_array($type,$allowedTypes,true)||$name===''){
   flash('Type atau name master tidak valid.');
+  redirect('/templates/master');
+ }
+ if(in_array($type,['role_category','reviewer_department'],true)&&strlen($name)>50){
+  flash('Nama role/reviewer maksimal 50 karakter.');
   redirect('/templates/master');
  }
  try{
@@ -1180,6 +1472,10 @@ if(preg_match('#^/(admin|templates)/master/(\d+)/delete$#',$path,$m)&&$method===
  $s=db()->prepare('SELECT * FROM master_options WHERE id=?');
  $s->execute([$id]);
  $old=$s->fetch();
+ if($old&&in_array($old['type'],['role_category','reviewer_department'],true)&&!is_super_admin()){
+  flash('Hanya Super Admin yang bisa menghapus role/reviewer master.');
+  redirect('/templates/master');
+ }
  db()->prepare('UPDATE master_options SET is_active=0,deleted_at=NOW(),deleted_by=? WHERE id=?')->execute([u()['id'],$id]);
  audit_log(null,'master_option_soft_deleted',[],['id'=>$id]);
  logActivity('SOFT_DELETE','MASTER',$id,($old['type']??'').' - '.($old['name']??''),$old,null);

@@ -11,23 +11,27 @@
   <input name="email" type="email" placeholder="Email" required>
   <input name="password" type="password" placeholder="New Password" required>
   <select name="role">
-    <option>Staff</option>
-    <option>PRD</option>
-    <option>RNI</option>
-    <option>QAC</option>
-    <option>PRNI</option>
-    <option>PI</option>
-    <option>Manager QAC</option>
-    <option>Admin</option>
+    <?php foreach(($roleCategories??role_categories()) as $roleCategory): ?>
+      <option value="<?=h($roleCategory)?>"><?=h($roleCategory)?></option>
+    <?php endforeach; ?>
   </select>
   <label>Department
-    <input name="department" placeholder="Auto untuk PRD/RNI/QAC/PRNI/PI">
+    <input name="department" placeholder="Auto untuk role reviewer">
     <small class="muted">Untuk role reviewer, department otomatis disamakan dengan role.</small>
   </label>
   <button>Save / Change Password</button>
 </form>
 
 <section class="card table-card">
+  <form method="get" action="/settings/users" class="dashboard-filter">
+    <label>Search User
+      <input name="q" value="<?=h($filters['q']??'')?>" placeholder="Nama, email, role, department">
+    </label>
+    <div class="filter-actions">
+      <button class="btn btn-primary">Search</button>
+      <a class="btn btn-light" href="/settings/users">Reset</a>
+    </div>
+  </form>
   <div class="table-wrap">
     <table class="modern-table">
       <tr><th>Name</th><th>Email</th><th>Role</th><th>Dept</th><th>Action</th></tr>
@@ -38,7 +42,7 @@
           <td><?=h($usr['role'])?></td>
           <td><?=h($usr['department'])?></td>
           <td class="actions">
-            <?php if((int)$usr['id']!==(int)(u()['id']??0)): ?>
+            <?php if((int)$usr['id']!==(int)(u()['id']??0)&&($usr['role']!=='Super Admin'||is_super_admin())): ?>
               <form method="post" action="/admin/users/<?=$usr['id']?>/delete" class="inline-form" onsubmit="return confirm('Delete this user account?')">
                 <?php csrf_field(); ?>
                 <button class="danger">Delete</button>

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Trial Validation System PHP + MySQL v4
 
 ## Instalasi
@@ -101,6 +100,8 @@ Jika database sudah pernah di-import sebelum update hardening, jalankan file:
 database/20260506_hardening_migration.sql
 database/20260506_add_trial_header_fields.sql
 database/20260506_normalize_reviewer_departments.sql
+database/20260702_trial_edit_permissions.sql
+database/20260702_selected_approver.sql
 ```
 
 Perubahan utama:
@@ -112,6 +113,9 @@ Perubahan utama:
 - Audit trail disimpan di tabel `audit_logs`.
 - Header trial memiliki field tambahan: Batch Number, Bulk Code, Support Team, Initiated person/team, Reason, dan B.O.M.
 - Department user reviewer dinormalisasi agar role PRD/RNI/QAC/PRNI/PI selalu bisa melihat review department sebelumnya.
-=======
-# trial_validation_app
->>>>>>> 08b66dfb967e58443bb2d1e01cc7b5a3bcb12e1a
+- Draft report hanya dapat dilihat/diedit oleh owner atau Staff yang diberi permission oleh Super Admin.
+- Staff dapat memilih approver user aktif mana pun saat submit review; approval hanya muncul untuk approver terpilih, Manager QAC unassigned, atau Admin/Super Admin.
+
+## Catatan akses
+- `Super Admin` dapat mengelola kategori hak akses, kategori reviewer, dan mengubah role user dari menu **Super Admin > Hak Akses**.
+- `Viewer` hanya diberi akses lihat report dan tidak dapat mencetak report melalui tombol aplikasi.

@@ -6,7 +6,7 @@ session_start();
 $config=require __DIR__.'/../config/database.php';
 try{
  $pdo=new PDO("mysql:host={$config['host']};dbname={$config['db']};charset={$config['charset']}",$config['user'],$config['pass'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);
-}catch(Exception $e){die('Database error: '.$e->getMessage().'<br>Import database/trial_validation_system_mysql.sql dulu.');}
+}catch(Exception $e){die('Database error: '.$e->getMessage().'<br>Import database/trial_validation_system_mysql_v2.sql dulu.');}
 if(!function_exists('str_contains')){
  function str_contains($haystack,$needle){
   $haystack=(string)$haystack;
@@ -60,10 +60,24 @@ function user_id_by_email($email){
  $id=$s->fetchColumn();
  return $id?(int)$id:null;
 }
-function is_admin(){return role()==='Admin';}
-function is_staff(){return role()==='Staff'||role()==='Admin';}
+function is_super_admin(){return role()==='Super Admin';}
+function is_admin(){return role()==='Admin'||is_super_admin();}
+function is_staff(){return role()==='Staff'||is_admin();}
 function is_manager_qac(){return role()==='Manager QAC';}
-function reviewer_department_codes(){return ['PRD','RNI','QAC','PRNI','PI'];}
+function is_viewer(){return role()==='Viewer';}
+function reviewer_department_codes(){
+ $defaults=['PRD','RNI','QAC','PRNI','PI'];
+ try{
+  $codes=$defaults;
+  foreach(opts('reviewer_department') as $option){
+   $code=normalize_department($option['name']??'');
+   if($code!==''&&!in_array($code,$codes,true)) $codes[]=$code;
+  }
+  return $codes;
+ }catch(Exception $e){
+  return $defaults;
+ }
+}
 function normalize_department($dept){
  $dept=strtoupper(trim((string)$dept));
  return preg_replace('/\s+/',' ',$dept);
@@ -83,8 +97,10 @@ function review_departments_for_user(){
 }
 function is_reviewer(){return !is_manager_qac()&&count(review_departments_for_user())>0;}
 function role_label(){
+ if(is_super_admin()) return 'Super Admin';
  if(is_admin()) return 'Admin';
  if(role()==='Staff') return 'Staff Trial';
+ if(is_viewer()) return 'Viewer';
  if(is_reviewer()) return 'Reviewer';
  if(is_manager_qac()) return 'Manager QAC';
  return role();
@@ -181,28 +197,118 @@ function render_pagination($pagination){
  if(empty($pagination)||($pagination['pages']??1)<=1) return;
  $page=(int)$pagination['page'];
  $pages=(int)$pagination['pages'];
- $params=$_GET;
- echo '<nav class="pagination">';
- $params['page']=max(1,$page-1);
- echo '<a class="'.($page<=1?'disabled':'').'" href="?'.h(http_build_query($params)).'">&lt;</a>';
- for($i=1;$i<=$pages;$i++){
-  $params['page']=$i;
-  echo '<a class="'.($i===$page?'active':'').'" href="?'.h(http_build_query($params)).'">'.h($i).'</a>';
+ if($pages>10){
+  echo '<nav class="pagination"><span class="page-info">Halaman '.$page.' dari '.$pages.'</span>';
+  $params=$_GET;
+  // Prev button
+  $params['page']=max(1,$page-1);
+  echo '<a class="'.($page<=1?'disabled':'').'" href="?'.h(http_build_query($params)).'">&laquo;</a>';
+  // First page
+  $params['page']=1;
+  echo '<a class="'.($page===1?'active':'').'" href="?'.h(http_build_query($params)).'">1</a>';
+  // Ellipsis after first
+  if($page>3) echo '<span class="ellipsis">...</span>';
+  // Middle pages
+  $start=max(2,$page-1);
+  $end=min($pages-1,$page+1);
+  if($page<=3) $end=min($pages-1,4);
+  if($page>=$pages-2) $start=max(2,$pages-3);
+  for($i=$start;$i<=$end;$i++){
+   $params['page']=$i;
+   echo '<a class="'.($i===$page?'active':'').'" href="?'.h(http_build_query($params)).'">'.$i.'</a>';
+  }
+  // Ellipsis before last
+  if($page<$pages-2) echo '<span class="ellipsis">...</span>';
+  // Last page
+  if($pages>1){
+   $params['page']=$pages;
+   echo '<a class="'.($page===$pages?'active':'').'" href="?'.h(http_build_query($params)).'">'.$pages.'</a>';
+  }
+  // Next button
+  $params['page']=min($pages,$page+1);
+  echo '<a class="'.($page>=$pages?'disabled':'').'" href="?'.h(http_build_query($params)).'">&raquo;</a>';
+  echo '</nav>';
+ }else{
+  $params=$_GET;
+  echo '<nav class="pagination">';
+  $params['page']=max(1,$page-1);
+  echo '<a class="'.($page<=1?'disabled':'').'" href="?'.h(http_build_query($params)).'">&laquo;</a>';
+  for($i=1;$i<=$pages;$i++){
+   $params['page']=$i;
+   echo '<a class="'.($i===$page?'active':'').'" href="?'.h(http_build_query($params)).'">'.$i.'</a>';
+  }
+  $params['page']=min($pages,$page+1);
+  echo '<a class="'.($page>=$pages?'disabled':'').'" href="?'.h(http_build_query($params)).'">&raquo;</a>';
+  echo '</nav>';
  }
- $params['page']=min($pages,$page+1);
- echo '<a class="'.($page>=$pages?'disabled':'').'" href="?'.h(http_build_query($params)).'">&gt;</a>';
- echo '</nav>';
 }
 function trial($id){$s=db()->prepare('SELECT * FROM trials_header WHERE id=?');$s->execute([$id]);$r=$s->fetch();if(!$r) die('Trial tidak ditemukan');return $r;}
 function opts($type){$s=db()->prepare('SELECT * FROM master_options WHERE type=? AND is_active=1 ORDER BY sort_order,name');$s->execute([$type]);return $s->fetchAll();}
+function role_categories(){
+ $defaults=['Staff','Viewer','Manager QAC','Admin','Super Admin'];
+ foreach(reviewer_department_codes() as $dept){
+  if(!in_array($dept,$defaults,true)) $defaults[]=$dept;
+ }
+ $roles=$defaults;
+ foreach(opts('role_category') as $option){
+  $name=trim((string)($option['name']??''));
+  if($name!==''&&!in_array($name,$roles,true)) $roles[]=$name;
+ }
+ return $roles;
+}
 function params_for($product_type){$s=db()->prepare('SELECT * FROM validation_parameters WHERE product_type=? AND is_active=1 ORDER BY sort_order,id');$s->execute([$product_type]);return $s->fetchAll();}
-function can_edit($t){return is_staff() && in_array($t['progress_status'],['Draft','Need Revision']);}
+function is_trial_owner($t){
+ return trim((string)($t['created_by']??''))!==''&&strcasecmp(trim((string)$t['created_by']),trim((string)(u()['email']??'')))===0;
+}
+function has_trial_edit_permission($trialId,$userId=null){
+ $userId=$userId??(u()['id']??0);
+ if(!$trialId||!$userId) return false;
+ try{
+  $s=db()->prepare('SELECT COUNT(*) FROM trial_edit_permissions WHERE trial_id=? AND user_id=? AND can_edit=1 AND revoked_at IS NULL');
+  $s->execute([(int)$trialId,(int)$userId]);
+  return (int)$s->fetchColumn()>0;
+ }catch(Exception $e){
+  return false;
+ }
+}
+function can_edit($t){
+ if(!is_staff()||!in_array($t['progress_status'],['Draft','Need Revision'],true)) return false;
+ if(($t['progress_status']??'')==='Draft') return is_trial_owner($t)||has_trial_edit_permission($t['id']??0);
+ return true;
+}
 function can_manage_settings(){return is_admin();}
 function can_manage_master(){return is_admin()||role()==='Staff';}
 function can_manage_parameters(){return is_admin()||role()==='Staff';}
 function can_view_products_template(){return is_admin()||role()==='Staff';}
 function can_manage_templates(){return is_admin()||role()==='Staff';}
-function can_approve_trials(){return is_admin()||is_manager_qac();}
+function has_assigned_approval($userId=null){
+ $userId=$userId??(u()['id']??0);
+ if(!$userId) return false;
+ try{
+  $s=db()->prepare('SELECT COUNT(*) FROM trials_header WHERE progress_status="Ready for Approval" AND deleted_at IS NULL AND approver_user_id=?');
+  $s->execute([(int)$userId]);
+  return (int)$s->fetchColumn()>0;
+ }catch(Exception $e){
+  return false;
+ }
+}
+function can_approve_trials(){
+ if(is_admin()) return true;
+ if(is_manager_qac()) return true;
+ // Team Leader, Part Leader, Team Leader QA can also approve
+ $approverRoles = ['Team Leader', 'Part Leader', 'Team Leader QA'];
+ if(in_array(role(), $approverRoles, true)) return true;
+ return has_assigned_approval();
+}
+function can_approve_trial($t){
+ if(is_admin()) return true;
+ if(is_manager_qac()) return true;
+ // Team Leader, Part Leader, Team Leader QA can also approve
+ $approverRoles = ['Team Leader', 'Part Leader', 'Team Leader QA'];
+ if(in_array(role(), $approverRoles, true)) return true;
+ if(!empty($t['approver_user_id'])) return (int)$t['approver_user_id']===(int)(u()['id']??0);
+ return false;
+}
 function base_url(){return '';}
 function csrf_token(){
  if(empty($_SESSION['csrf_token'])) $_SESSION['csrf_token']=bin2hex(random_bytes(32));
@@ -275,7 +381,11 @@ function weighing_stats($items){
  ];
 }
 function can_view_trial($t){
- if(is_staff()||role()==='Manager QAC') return true;
+ if(($t['progress_status']??'')==='Draft') return is_super_admin()||is_trial_owner($t)||has_trial_edit_permission($t['id']??0);
+ if(is_viewer()) return true;
+ // Admin, Staff, Manager QAC, Team Leader, Part Leader, Team Leader QA can view
+ $approverRoles = ['Manager QAC', 'Team Leader', 'Part Leader', 'Team Leader QA'];
+ if(is_staff()||in_array(role(), $approverRoles, true)) return true;
  if(is_reviewer()){
   $departments=review_departments_for_user();
   $placeholders=implode(',',array_fill(0,count($departments),'?'));
@@ -308,11 +418,14 @@ function audit_log($trial_id,$action,$old_data=[],$new_data=[]){
  $map=[
   'trial_created'=>['CREATE','TRIAL'],
   'trial_header_updated'=>['UPDATE','TRIAL'],
+  'trial_edit_permission_granted'=>['GRANT_PERMISSION','TRIAL'],
+  'trial_edit_permission_revoked'=>['REVOKE_PERMISSION','TRIAL'],
   'validation_saved'=>['UPDATE','PARAMETER'],
   'weighing_saved'=>['UPDATE','TRIAL'],
   'attachments_uploaded'=>['CREATE','ATTACHMENT'],
   'attachment_deleted'=>['DELETE','ATTACHMENT'],
   'submitted_for_review'=>['SUBMIT_REVIEW','REVIEW'],
+  'approval_assignee_selected'=>['SELECT_APPROVER','APPROVAL'],
   'department_reviewed'=>['UPDATE','REVIEW'],
   'manager_approval'=>['APPROVE','APPROVAL'],
   'admin_user_saved'=>['UPDATE','USER'],
@@ -482,8 +595,9 @@ function trial_action_html($t){
  $html=[];
  if(reviewer_has_pending_review($id)) return '<a class="btn btn-primary" href="/reviews">Review</a>';
  if(can_edit($t)) $html[]='<a class="btn btn-primary" href="/trials/'.$id.'/validation">Lanjutkan</a><a class="btn btn-light" href="/trials/'.$id.'/edit">Edit</a>';
+ elseif(($t['progress_status']??'')==='Draft'&&can_view_trial($t)) $html[]='<a class="btn btn-light" href="/trials/'.$id.'/report">View</a>';
  elseif($status==='In Review') $html[]='<a class="btn btn-light" href="/trials/'.$id.'/report">View Review</a>';
- elseif($status==='Ready for Approval'&&can_approve_trials()) $html[]='<a class="btn btn-primary" href="/approval">Approve</a>';
+ elseif($status==='Ready for Approval'&&can_approve_trial($t)) $html[]='<a class="btn btn-primary" href="/approval">Approve</a>';
  elseif($status==='Ready for Approval') $html[]='<a class="btn btn-light" href="/trials/'.$id.'/report">View</a>';
  elseif($status==='Approved') $html[]='<a class="btn btn-primary" href="/trials/'.$id.'/report">View Report</a>';
  elseif(in_array($status,['Rejected','Need Revision'],true)||in_array($t['final_decision']??'', ['Rejected','Need Revision'], true)){
@@ -506,11 +620,28 @@ function scoped_trials_parts($filters=[],$status_group=null){
   $params=array_merge($params,$departments);
  }
  $where[]='h.deleted_at IS NULL';
+ if(!is_super_admin()){
+  $draftScope='h.progress_status<>"Draft" OR LOWER(TRIM(h.created_by))=?';
+  $params[]=strtolower(trim((string)(u()['email']??'')));
+  try{
+   db()->query('SELECT 1 FROM trial_edit_permissions LIMIT 0');
+   $draftScope.=' OR EXISTS (SELECT 1 FROM trial_edit_permissions tep WHERE tep.trial_id=h.id AND tep.user_id=? AND tep.can_edit=1 AND tep.revoked_at IS NULL)';
+   $params[]=(int)(u()['id']??0);
+  }catch(Exception $e){}
+  $where[]='('.$draftScope.')';
+ }
  if($status_group==='approved') $where[]='h.progress_status="Approved"';
  if($status_group==='in-review') $where[]='h.progress_status="In Review"';
  if($status_group==='need-revision') $where[]='h.progress_status="Need Revision"';
  if($status_group==='rejected') $where[]='(h.progress_status="Rejected" OR h.final_decision="Rejected")';
  if($status_group==='waiting') $where[]='h.progress_status="Ready for Approval"';
+ if($status_group==='waiting'&&!is_admin()&&!is_manager_qac()){
+  $where[]='h.approver_user_id=?';
+  $params[]=(int)(u()['id']??0);
+ }elseif($status_group==='waiting'&&!is_admin()){
+  $where[]='(h.approver_user_id IS NULL OR h.approver_user_id=?)';
+  $params[]=(int)(u()['id']??0);
+ }
  if($status_group==='draft') $where[]='h.progress_status="Draft"';
 
  $q=trim($filters['q']??'');

@@ -18,7 +18,10 @@
           <td><?=h($t['product_type'])?></td>
           <td><?=h($t['approved_at']??'')?></td>
           <td><?=h(display_person_name($t['approved_by']??''))?></td>
-          <td><a class="btn btn-primary" href="/trials/<?=$t['id']?>/report">View Report</a> <button class="btn btn-light" onclick="window.print()">Print</button></td>
+          <td>
+            <a class="btn btn-primary" href="/trials/<?=$t['id']?>/report">View Report</a>
+            <button class="btn btn-light" onclick="window.print()">Print</button>
+          </td>
         </tr>
       <?php endforeach; ?>
       <?php if(!$items): ?><tr><td colspan="7" class="empty-state">Belum ada approved report.</td></tr><?php endif; ?>
