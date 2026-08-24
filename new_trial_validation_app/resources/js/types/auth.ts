@@ -3,9 +3,10 @@ export type User = {
     name: string;
     email: string;
     avatar?: string;
-    email_verified_at: string | null;
+    role: string;
+    department: string | null;
+    is_active: boolean;
     created_at: string;
-    updated_at: string;
     [key: string]: unknown;
 };
 

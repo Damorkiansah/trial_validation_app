@@ -47,9 +47,19 @@ Official `laravel/react-starter-kit` scaffold — **Inertia.js**, not a decouple
 
 `app/Policies/TrialPolicy.php` ports `can_view_trial()`/`can_edit()`/`can_approve_trial()` (`view`/`update`/`approve` abilities — auto-discovered by Laravel via the `Trial`/`TrialPolicy` naming convention, no manual registration needed). `Trial::scopeVisibleTo()` ports the row-level list-scoping query from `scoped_trials_parts()` — use it wherever a trials list needs to be restricted to what the current user may see. Simple admin-only checks that aren't tied to a model instance (`can_manage_master()` etc.) are registered as Gates in `AppServiceProvider::configureGates()` (`manage-settings`, `manage-master`, `manage-parameters`, `view-products-template`, `manage-templates`).
 
+### Fase 1 progress
+
+**Users** (2026-08-24): `app/Http/Controllers/Admin/UserController.php` (`admin.users.index/store/destroy`, routed from `routes/admin.php`) + `resources/js/pages/admin/users/index.tsx` — list/search, create-or-update-by-email upsert (mirrors legacy's single "Save / Change Password" form), soft delete. `app/Policies/UserPolicy.php` gates it (viewAny/create/update/delete), including the Super-Admin-target protection rules from legacy. `User::roleCategories()` ports `role_categories()`.
+
+Two gotchas hit while building this, relevant to any future model-mutating controller code:
+- `User`'s `#[Fillable(['name','email','role','department'])]` attribute deliberately excludes `password_hash`/`is_active`/`deleted_at`/`deleted_by`. Mass-assignment helpers (`updateOrCreate`, `Model::update([...])`) silently drop those fields with no error — set them via direct property assignment (`$user->password_hash = ...; $user->save();`) instead.
+- `AppServiceProvider::configureDefaults()` rebinds the `Date` facade to `CarbonImmutable` app-wide, so the `now()` helper returns a `CarbonImmutable`. Assigning that to a property typed as `Carbon` (e.g. `deleted_at`) fails Larastan. Use `\Illuminate\Support\Carbon::now()` explicitly for those assignments.
+
+Legacy's Access Rights screen (role/department reassignment, reviewer-department master, draft-trial edit-permission grant/revoke) is a separate, Super-Admin-only, higher-risk piece — deferred to its own pass (see `../CLAUDE.md` Fase 1 checklist).
+
 ### Not yet built
 
-Beyond the RBAC scaffolding above, no domain code from the legacy app has been ported yet — no real trial/review/approval controllers or full CRUD models. When starting Fase 1 work (see `../CLAUDE.md`), this is close to a clean slate for the admin/master-data modules (the `MasterOption` stub above is a starting point for the Masters module).
+Beyond the RBAC scaffolding and Users module above, no other domain code from the legacy app has been ported yet — no trial/review/approval controllers or full CRUD models. The `MasterOption` stub is a starting point for the Masters module.
 
 ### Reconciling with MIGRATION_PLAN.md
 

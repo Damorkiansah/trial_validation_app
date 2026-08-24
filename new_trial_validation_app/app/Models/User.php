@@ -176,6 +176,44 @@ class User extends Authenticatable
         return ! $this->isManagerQac() && count($this->reviewDepartmentsForUser()) > 0;
     }
 
+    /**
+     * Assignable role categories: the hardcoded defaults, plus any reviewer
+     * department codes and any custom roles added via master_options
+     * (type=role_category). Port of legacy bootstrap.php's role_categories().
+     *
+     * @return list<string>
+     */
+    public static function roleCategories(): array
+    {
+        $roles = ['Staff', 'Viewer', 'Manager QAC', 'Admin', 'Super Admin'];
+
+        foreach (self::reviewerDepartmentCodes() as $dept) {
+            if (! in_array($dept, $roles, true)) {
+                $roles[] = $dept;
+            }
+        }
+
+        try {
+            $names = MasterOption::query()
+                ->where('type', 'role_category')
+                ->where('is_active', 1)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->pluck('name');
+
+            foreach ($names as $name) {
+                $name = trim((string) $name);
+                if ($name !== '' && ! in_array($name, $roles, true)) {
+                    $roles[] = $name;
+                }
+            }
+        } catch (\Throwable) {
+            // fall through with defaults, matching legacy behavior
+        }
+
+        return $roles;
+    }
+
     public function roleLabel(): string
     {
         if ($this->isSuperAdmin()) {
