@@ -59,9 +59,15 @@ Legacy's Access Rights screen (role/department reassignment, reviewer-department
 
 **Products** (2026-08-24): `app/Http/Controllers/Admin/ProductController.php` (`admin.products.index/store/destroy`, routed from `routes/admin.php`) + `resources/js/pages/admin/products/index.tsx` — paginated list, edit-in-place via `?edit={id}`, create-or-update-by-id-or-name upsert, soft delete. No new Policy — reuses the `manage-templates` Gate from `AppServiceProvider::configureGates()` (Admin or Staff). New `App\Models\Product` maps onto the real shared `products` table (`product_name` unique, `finish_good_code`, `is_active`, `deleted_at`, `deleted_by` — no timestamp columns); its fresh-install migration follows the same `Schema::hasTable` guard pattern as the `users` migration. `finish_good_code` is plain free-text in legacy, no auto-generation logic — confirmed before porting.
 
+**Parameters** (2026-08-24): `app/Http/Controllers/Admin/ParameterController.php` (`admin.parameters.index/store/destroy`, routed from `routes/admin.php`) + `resources/js/pages/admin/parameters/index.tsx`, linked from `app-sidebar.tsx`. No new Policy — reuses the `manage-parameters` Gate (Admin or Staff), same shape as `manage-templates`. New `App\Models\ValidationParameter` maps onto the real shared `validation_parameters` table (`product_type`, `parameter_name`, `specification`, `sort_order`, `is_active`, `deleted_at`, `deleted_by` — no timestamps); its fresh-install migration follows the `products` pattern. Unlike Products, legacy's save here is a plain create-or-update-by-id — there's no upsert-by-name matching, so saving without an `id` always inserts (even on a duplicate `parameter_name`); the port preserves that.
+
+The product-type dropdown on this page reads `master_options` (`type='product_type'`) through the existing `App\Models\MasterOption` stub — this is what finally required adding `2026_08_24_000003_create_master_options_table.php`, a fresh-install migration for `master_options` (schema-only, same shared-DB-skip guard as the other tables). That table had no migration until now even though `User::reviewerDepartmentCodes()`/`roleCategories()` already queried it from the Fase 0 RBAC port — they just never hit a fresh sqlite install without a try/catch fallback masking the gap. This migration does **not** front-run the separate Masters CRUD module (still unbuilt) — it only makes the table exist.
+
+Also added `resources/js/components/ui/textarea.tsx` (shadcn primitive, wasn't in this scaffold yet — needed for the Specification field).
+
 ### Not yet built
 
-Beyond the RBAC scaffolding, Users, and Products modules above, no other domain code from the legacy app has been ported yet — no trial/review/approval controllers or full CRUD models. The `MasterOption` stub is a starting point for the Masters module.
+Beyond the RBAC scaffolding, Users, Products, and Parameters modules above, no other domain code from the legacy app has been ported yet — no trial/review/approval controllers or full CRUD models. The `MasterOption` stub (now backed by a real migration, see Parameters above) is a starting point for the Masters module, which still needs its own CRUD UI.
 
 ### Reconciling with MIGRATION_PLAN.md
 

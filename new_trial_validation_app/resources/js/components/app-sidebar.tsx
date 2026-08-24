@@ -1,5 +1,12 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid, Package, Users } from 'lucide-react';
+import {
+    BookOpen,
+    FlaskConical,
+    FolderGit2,
+    LayoutGrid,
+    Package,
+    Users,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -14,6 +21,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as parametersIndex } from '@/routes/admin/parameters';
 import { index as productsIndex } from '@/routes/admin/products';
 import { index as usersIndex } from '@/routes/admin/users';
 import type { Auth, NavItem } from '@/types';
@@ -58,6 +66,11 @@ export function AppSidebar() {
                       title: 'Products',
                       href: productsIndex(),
                       icon: Package,
+                  },
+                  {
+                      title: 'Parameters',
+                      href: parametersIndex(),
+                      icon: FlaskConical,
                   },
               ]
             : []),
