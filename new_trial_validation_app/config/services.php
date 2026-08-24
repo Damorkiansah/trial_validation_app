@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'old_app' => [
+        'url' => env('OLD_APP_URL', 'http://localhost:8000'),
+    ],
+
 ];

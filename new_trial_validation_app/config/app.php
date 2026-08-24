@@ -63,9 +63,15 @@ return [
     | will be used by the PHP date and date-time functions. The timezone
     | is set to "UTC" by default as it is suitable for most use cases.
     |
+    | This MUST match the timezone of the shared MySQL server (see the SSO
+    | bridge in MIGRATION_PLAN.md §4): `sso_tickets.expires_at` is written
+    | and compared by both this app (via `now()`) and the legacy app (via
+    | plain SQL `NOW()`) — if the two clocks disagree, tickets issued by
+    | one side look already-expired to the other.
+    |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

@@ -32,10 +32,31 @@ if($path==='/logout'){
  redirect('/login');
 }
 
+if($path==='/sso/consume'){
+ $user=sso_consume_ticket($_GET['ticket']??'','new_to_old');
+ if($user){
+  session_regenerate_id(true);
+  $_SESSION['user']=$user;
+  logActivity('SSO_LOGIN','AUTH',$user['id'],$user['email']);
+  redirect('/');
+ }
+ flash('Sesi SSO tidak valid atau kedaluwarsa.');
+ redirect('/login');
+}
+
 require_login();
 
 if($path==='/'){
  redirect('/dashboard');
+}
+
+if($path==='/sso/to-new'){
+ // Manual test-trigger for the old->new SSO leg. Replace with real menu
+ // links (calling sso_issue_ticket('old_to_new') directly) as modules migrate.
+ $token=sso_issue_ticket('old_to_new');
+ logActivity('SSO_ISSUE','AUTH',u()['id'],u()['email']);
+ $ssoConfig=require __DIR__.'/../config/sso.php';
+ redirect($ssoConfig['new_app_url'].'/sso/exchange?ticket='.$token);
 }
 
 if($path==='/notifications'){

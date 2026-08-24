@@ -11,15 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
-            $table->timestamps();
-        });
+        // `users` is shared with the legacy app's MySQL database and already
+        // exists there with a different schema (password_hash/role/department
+        // instead of password/email_verified_at/remember_token) — skip
+        // creating it when the app is pointed at that shared DB. On a fresh
+        // (e.g. sqlite) setup with no legacy data, it's created as usual.
+        if (! Schema::hasTable('users')) {
+            Schema::create('users', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('email')->unique();
+                $table->timestamp('email_verified_at')->nullable();
+                $table->string('password');
+                $table->rememberToken();
+                $table->timestamps();
+            });
+        }
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
@@ -42,7 +49,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
+        // Never drop the shared `users` table here — see note in up().
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
     }

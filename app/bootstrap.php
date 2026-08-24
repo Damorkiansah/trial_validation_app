@@ -185,6 +185,27 @@ function logActivity($action,$module,$recordId=null,$recordLabel=null,$oldData=n
   ]);
  }catch(Exception $e){}
 }
+function sso_issue_ticket($direction){
+ $token=bin2hex(random_bytes(32));
+ $s=db()->prepare('INSERT INTO sso_tickets(token,user_id,direction,expires_at) VALUES(?,?,?,DATE_ADD(NOW(),INTERVAL 30 SECOND))');
+ $s->execute([$token,u()['id']??null,$direction]);
+ return $token;
+}
+function sso_consume_ticket($token,$expectedDirection){
+ if($token===''||$token===null) return null;
+ $s=db()->prepare('UPDATE sso_tickets SET used_at=NOW() WHERE token=? AND direction=? AND used_at IS NULL AND expires_at>NOW()');
+ $s->execute([$token,$expectedDirection]);
+ if($s->rowCount()!==1) return null;
+ $t=db()->prepare('SELECT user_id FROM sso_tickets WHERE token=?');
+ $t->execute([$token]);
+ $row=$t->fetch();
+ if(!$row) return null;
+ $u=db()->prepare('SELECT * FROM users WHERE id=? AND is_active=1');
+ $u->execute([$row['user_id']]);
+ $user=$u->fetch();
+ if($user) unset($user['password_hash']);
+ return $user?:null;
+}
 function pagination_state($total,$perPage=10){
  $perPage=max(1,(int)$perPage);
  $total=max(0,(int)$total);

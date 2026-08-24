@@ -1,7 +1,7 @@
 # Migration Plan — Trial Validation System → Laravel + React
 
-Status: **Draft untuk diskusi**. Belum ada implementasi dimulai.
-Terakhir diperbarui: 2026-08-21
+Status: **Fase 0 in progress**. Keputusan Inertia vs API-only sudah diambil (2026-08-24, lihat §2). SSO bridge (§4) sudah diimplementasikan **dan diverifikasi end-to-end secara lokal** kedua arah (2026-08-24) — lihat §6.
+Terakhir diperbarui: 2026-08-24
 
 ## 1. Latar belakang & tujuan
 
@@ -17,11 +17,13 @@ Alasan migrasi:
 - **Server:** app baru di-setup di **server baru, Ubuntu 26**, terpisah fisik dari server lama (yang saat ini menjalankan app PHP existing via XAMPP/Windows). Stack yang disarankan di Ubuntu: **Nginx + PHP-FPM** (lebih standar untuk Laravel di Linux dibanding Apache).
 - **Topologi jaringan:** dua server ini satu LAN/VPN internal kantor (bisa saling akses langsung via IP internal), tapi **diakses user via dua hostname/IP terpisah** — tidak ada reverse proxy tunggal yang menyatukan keduanya di depan. Konsekuensinya, app lama dan app baru adalah **origin yang berbeda** dari sudut pandang browser; navigasi antar keduanya adalah full-page redirect biasa (bukan AJAX/fetch), jadi CORS tidak relevan di sini.
 - **Database:** **satu instance MySQL yang sama**, dipakai bersama oleh app lama dan app baru (wajib untuk strangler pattern — lihat §8 soal lokasi fisik DB yang masih perlu diputuskan). Karena DB shared, app baru bisa query tabel `users` dan tabel-tabel lain langsung tanpa perlu sinkronisasi data terpisah.
-- **Backend:** Laravel, API-only (bukan Blade/Inertia) — dipakai bersama oleh web frontend dan mobile app nanti.
-- **Auth:** Laravel Sanctum, dual-mode:
-  - Web React SPA → **cookie-based SPA auth** (session cookie + CSRF), karena SPA dan API sama-sama di-serve dari server Ubuntu yang sama (same-origin) — lebih aman dari XSS dibanding Bearer token di localStorage.
-  - Mobile app (nanti) → **Bearer token** (Sanctum personal access token) via endpoint login terpisah.
-- **Frontend web:** React SPA (Vite), **bukan Next.js**. Alasan: aplikasi ini internal/auth-gated (bukan publik, tidak butuh SEO/SSR) — React SPA hasil build adalah file statis yang di-serve Nginx, tidak butuh proses Node.js yang harus terus menyala di server. Next.js baru relevan kalau nanti ada kebutuhan SSR publik.
+- **Backend:** Laravel + **Inertia.js** (bukan API-only seperti draft awal — keputusan direvisi 2026-08-24, lihat catatan di bawah). Web pages di-serve sebagai `Inertia::render()` response, session/cookie-based lewat Fortify (bawaan `laravel/react-starter-kit`, yang sudah dipakai untuk scaffold `new_trial_validation_app/`).
+- **Auth:**
+  - Web (Inertia) → session cookie Laravel standar (Fortify), same-origin dengan backend karena Inertia di-serve langsung oleh Laravel — tidak butuh Sanctum SPA mode maupun CSRF token terpisah seperti API-only.
+  - Mobile app (nanti, setelah web migration selesai) → namespace terpisah `/api/v1/*` dengan Sanctum **Bearer token** (personal access token) via endpoint login khusus mobile. Lihat §5.
+- **Frontend web:** React lewat Inertia (Vite), bukan SPA terpisah/Next.js. Alasan direvisi: `laravel/react-starter-kit` sudah menyediakan Inertia+Fortify siap pakai (routing, auth pages, session handling) — build SPA API-only terpisah dari nol tidak menambah value untuk kebutuhan web internal ini, dan Inertia tetap cookie/session-driven sehingga desain SSO bridge di §4 tidak berubah. Rute JSON API murni (`/api/v1/*`) baru dibutuhkan saat mobile app dikerjakan, bukan untuk web.
+
+> **Keputusan 2026-08-24:** Draft awal rencana ini (lihat riwayat git) mengasumsikan API-only + SPA terpisah. Setelah scaffold `new_trial_validation_app/` ternyata pakai `laravel/react-starter-kit` (Inertia+Fortify), keputusan direvisi ke **tetap pakai Inertia** untuk web, dengan `/api/v1/*` + Sanctum ditambahkan belakangan khusus mobile. §5 di bawah sudah disesuaikan.
 - **Database:** boleh diredesain, tapi **bertahap per modul saat modul itu cutover** — bukan sekaligus di awal, supaya app lama yang masih jalan tidak mendadak rusak oleh perubahan skema.
 
 ## 3. Strategi migrasi: strangler pattern, bertahap per modul
@@ -44,8 +46,8 @@ Tabel baru: `sso_tickets(id, token, user_id, direction, expires_at, used_at)` �
 
 **Old app → New app:**
 1. User klik menu yang sudah dimigrasi.
-2. Old app insert row ke `sso_tickets` (query PDO langsung, tabel di DB yang sama), redirect (302, full-page, cross-origin) ke `https://<host-baru>/app/bridge?ticket=xxx`.
-3. React app di server baru load, panggil `POST /api/v1/sso/exchange` dengan ticket tsb — endpoint ini di Laravel, query ke tabel `sso_tickets` yang sama.
+2. Old app insert row ke `sso_tickets` (query PDO langsung, tabel di DB yang sama), redirect (302, full-page, cross-origin) ke `https://<host-baru>/sso/exchange?ticket=xxx`.
+3. Endpoint ini adalah route biasa di `routes/web.php` Laravel (`GET /sso/exchange`, lihat §5) — bukan panggilan `POST /api/v1/...` dari React lewat fetch/AJAX. Browser sendiri yang navigasi (full-page GET), jadi tidak ada langkah render React perantara: controller langsung query ke tabel `sso_tickets` yang sama begitu request masuk.
 4. Laravel verifikasi ticket (belum expired, belum used) → `Auth::login($user)` (set session cookie Laravel untuk hostname server baru) → ticket langsung ditandai used.
 5. Browser sekarang sudah punya session cookie Laravel (untuk origin server baru), redirect ke halaman tujuan tanpa login ulang.
 
@@ -57,51 +59,64 @@ Karena yang lewat URL cuma ticket sekali-pakai berumur pendek (bukan token API a
 
 Prasyarat infra: server Ubuntu baru harus punya akses jaringan ke MySQL (port 3306) di lokasi DB berada — lihat §8 soal lokasi fisik DB yang masih perlu diputuskan.
 
+**Catatan timezone (ditemukan saat verifikasi lokal 2026-08-24):** `sso_tickets.expires_at` ditulis dan dibandingkan oleh kedua sisi — old app selalu lewat `NOW()` SQL langsung, Laravel lewat `now()` (Carbon, mengikuti `config('app.timezone')`). Kalau timezone MySQL server dan `APP_TIMEZONE` Laravel tidak sama, ticket yang diterbitkan salah satu sisi akan selalu terlihat kedaluwarsa oleh sisi lain. Laravel sudah diubah supaya `APP_TIMEZONE` bisa di-set lewat `.env` (lihat `new_trial_validation_app/config/app.php`) — **apa pun keputusan lokasi fisik DB di §8, timezone MySQL server tsb harus disamakan dengan `APP_TIMEZONE`.**
+
 Catatan: mekanisme ini **hanya untuk masa transisi**. Setelah Fase 4 (decommission), route `/sso/*` di kedua sisi dan tabel `sso_tickets` dihapus.
 
-## 5. Struktur API Laravel
+## 5. Struktur route Laravel (revisi 2026-08-24 — lihat catatan keputusan di §2)
 
+Dua namespace terpisah dengan tujuan berbeda:
+
+**`routes/web.php` — halaman web, Inertia (dipakai user lewat browser, ini yang dikerjakan Fase 1-3):**
+```
+routes/web.php
+  /sso/exchange                (konsumsi ticket dari old app → Auth::login + redirect)
+
+  /admin/users                 Inertia::render('admin/users/...')
+  /admin/products
+  /admin/parameters
+  /admin/access-rights
+  /admin/masters
+  /admin/notifications
+  /admin/trash
+  /activity-logs
+
+  /dashboard
+  /trials                      (list, show)
+  /trials/{id}/weighing
+  /trials/{id}/validation
+  /trials/{id}/reviews
+  /trials/{id}/approval
+  /trials/{id}/attachments
+  /trials/{id}/report
+```
+
+**`routes/api.php` — JSON API, Sanctum Bearer token (belum dikerjakan — baru relevan saat proyek mobile app dimulai, setelah web migration selesai):**
 ```
 routes/api.php
-  /api/v1/auth/login          (mobile — Bearer token)
+  /api/v1/auth/login           (mobile — Bearer token)
   /api/v1/auth/logout
   /api/v1/auth/me
-  /api/v1/sso/exchange        (web — konsumsi ticket dari old app)
-
-  /api/v1/admin/users
-  /api/v1/admin/products
-  /api/v1/admin/parameters
-  /api/v1/admin/access-rights
-  /api/v1/admin/masters
-  /api/v1/admin/notifications
-  /api/v1/admin/trash
-  /api/v1/activity-logs
-
-  /api/v1/dashboard
-  /api/v1/trials                          (list, show)
-  /api/v1/trials/{id}/weighing
-  /api/v1/trials/{id}/validation
-  /api/v1/trials/{id}/reviews
-  /api/v1/trials/{id}/approval
-  /api/v1/trials/{id}/attachments
-  /api/v1/trials/{id}/report
+  /api/v1/... (mirror endpoint di atas, ditambahkan per kebutuhan mobile app)
 ```
 
 Konvensi struktur kode:
-- `app/Http/Controllers/Api/V1/*Controller.php` — controller tipis, tidak berisi business logic.
-- `app/Http/Requests/*` — form request class per action (validasi).
-- `app/Http/Resources/*` — API Resource untuk bentuk JSON yang konsisten.
+- `app/Http/Controllers/*Controller.php` — controller untuk halaman Inertia, return `Inertia::render($component, $props)`. Tipis, tidak berisi business logic.
+- `app/Http/Controllers/Api/V1/*Controller.php` — controller API murni untuk mobile (dikerjakan belakangan), return API Resource.
+- `app/Http/Requests/*` — form request class per action (validasi), dipakai baik oleh controller Inertia maupun API.
+- `app/Http/Resources/*` — API Resource untuk bentuk JSON konsisten — dipakai untuk `/api/v1/*` (mobile). Untuk props Inertia, boleh pakai Resource juga (`->toArray()`) supaya bentuk data konsisten antara web dan mobile, tapi tidak wajib.
 - `app/Models/*` — Eloquent model. Di awal, map langsung ke tabel existing (`protected $table = '...'`) sebelum redesign skema per modul.
-- `app/Policies/*` — **konsolidasi semua fungsi `is_admin()`, `is_staff()`, `can_edit()`, `can_approve_trial()`, `can_view_trial()`, dst dari `app/bootstrap.php`** jadi Policy class per model. Ini salah satu win terbesar dari migrasi ini — logic otorisasi yang sekarang tersebar jadi satu tempat yang jelas.
-- `app/Actions/*` (single-action classes) — untuk business logic alur kerja: `SubmitTrialForReview`, `ApproveTrial`, `RejectTrial`, dsb. Cocok untuk domain berbasis state machine seperti ini.
+- `app/Policies/*` — **konsolidasi semua fungsi `is_admin()`, `is_staff()`, `can_edit()`, `can_approve_trial()`, `can_view_trial()`, dst dari `app/bootstrap.php`** jadi Policy class per model. Ini salah satu win terbesar dari migrasi ini — logic otorisasi yang sekarang tersebar jadi satu tempat yang jelas. Dipakai baik oleh controller Inertia (`$this->authorize(...)`) maupun API controller nantinya.
+- `app/Actions/*` (single-action classes) — untuk business logic alur kerja: `SubmitTrialForReview`, `ApproveTrial`, `RejectTrial`, dsb. Cocok untuk domain berbasis state machine seperti ini, dan reusable dari controller Inertia maupun API.
 
 ## 6. Fase migrasi
 
 ### Fase 0 — Fondasi
-- Setup project Laravel (API-only) + Sanctum + React SPA (Vite) skeleton.
-- Apache routing: `/` (lama), `/app` (SPA baru), `/api` (Laravel).
-- Implementasi SSO bridge (lihat §4) — **harus selesai & teruji sebelum modul apa pun di-cutover**, karena semua fase berikutnya bergantung pada ini.
-- Port RBAC dasar dari `bootstrap.php` ke Laravel Policies.
+- [x] Setup project Laravel + Inertia + React (`laravel/react-starter-kit`, Fortify auth) — selesai.
+- [x] Keputusan arsitektur Inertia vs API-only — **diputuskan 2026-08-24: tetap Inertia** (lihat §2).
+- [x] Implementasi SSO bridge (lihat §4) — **selesai & diverifikasi end-to-end 2026-08-24, kedua arah** (`sso_tickets` table, `/sso/consume` + `/sso/to-new` di legacy, `/sso/exchange` + `/sso/to-old` di Laravel). Diuji lokal terhadap MySQL shared: login → issue ticket → consume di sisi lain → akses halaman terproteksi, kedua arah, plus replay/expiry/bogus-ticket ditolak dengan benar.
+- [ ] Lokasi fisik DB shared + akses network/firewall antar server (§8) — belum diputuskan. **Juga perlu menyamakan timezone MySQL server dengan `APP_TIMEZONE` Laravel** (lihat catatan timezone di §4) — bug nyata yang ditemukan saat verifikasi lokal.
+- [ ] Port RBAC dasar dari `bootstrap.php` ke Laravel Policies.
 
 ### Fase 1 — Modul admin/master data (risiko rendah)
 Users, Products, Parameters, Access Rights, Masters, Notifications, Trash, Activity Logs. Modul berdiri sendiri (tanpa state machine approval) — cocok jadi tempat memvalidasi pola migrasi + percobaan pertama redesign skema dengan risiko kecil.
@@ -130,7 +145,7 @@ Modul-modul ini adalah satu alur state machine yang saling terkait erat (lihat `
 
 ## 8. Belum diputuskan / parkir untuk diskusi lanjutan
 
-- **Lokasi fisik database MySQL** — apakah tetap di server lama (server Ubuntu baru connect remote ke situ) atau dipindah/dimigrasi ke server Ubuntu baru (server lama yang connect remote, atau `config/database.php` app lama diarahkan ke host baru). Perlu dipastikan juga firewall/port 3306 terbuka antar kedua server sebelum Fase 0 mulai.
+- **Lokasi fisik database MySQL** — apakah tetap di server lama (server Ubuntu baru connect remote ke situ) atau dipindah/dimigrasi ke server Ubuntu baru (server lama yang connect remote, atau `config/database.php` app lama diarahkan ke host baru). Perlu dipastikan juga firewall/port 3306 terbuka antar kedua server sebelum Fase 0 mulai. Perlu juga dipastikan timezone MySQL server tsb disamakan dengan `APP_TIMEZONE` Laravel (§4) — kalau beda, `sso_tickets.expires_at` yang ditulis salah satu sisi akan selalu terlihat kedaluwarsa oleh sisi lain.
 - Detail sub-tahapan Fase 3 (belum dirinci — akan direncanakan saat Fase 1 & 2 selesai dan pola migrasinya sudah stabil).
 - Skema baru untuk tabel-tabel yang akan diredesain (belum dirancang).
 - Struktur API/versioning untuk kebutuhan spesifik mobile app (belum relevan sampai Fase 4 selesai).

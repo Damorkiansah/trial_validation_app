@@ -17,8 +17,8 @@ This repo currently contains **two applications**:
 There is no build step, package manager, or test suite for this app (no `composer.json`, no `phpunit`). It runs directly as plain PHP.
 
 ```powershell
-# Run locally (from repo root)
-C:\xampp\php\php.exe -S localhost:8000 -t public
+# Run locally (from repo root) — uses whatever `php` is on PATH (Laragon's, on this machine)
+php -S localhost:8000 -t public
 # then open http://localhost:8000
 ```
 
@@ -39,18 +39,20 @@ Domain model: a "trial" (`trials_header`) moves through a state machine — `Dra
 
 ## Migration status (summary — see `MIGRATION_PLAN.md` for full detail)
 
-Target: Laravel (API) + React SPA on a new Ubuntu 26 server, migrated module-by-module (strangler pattern) while the legacy app keeps running, connected to the **same MySQL database**.
+Target: Laravel + Inertia.js (React) on a new Ubuntu 26 server, migrated module-by-module (strangler pattern) while the legacy app keeps running, connected to the **same MySQL database**. A separate `/api/v1/*` (Sanctum Bearer token) is deferred until the mobile app project starts, after web migration completes.
 
-**⚠️ Open item to confirm with the user:** `new_trial_validation_app/` was scaffolded with the official `laravel/react-starter-kit` (**Inertia.js + React**, Fortify auth), not the plain API-only + separate Vite SPA + Sanctum described in `MIGRATION_PLAN.md` §2/§5. Inertia is session/cookie-driven like the plan's SSO bridge assumes, so the bridge design still works, but the "Struktur API" section (§5) assumed pure JSON API + API Resources for *every* screen — with Inertia, web pages will mostly be `Inertia::render()` responses instead, and only a separate `/api/v1/*` namespace (for the future mobile app) needs Sanctum token auth + Resources. **Confirm this direction next session and reconcile §5 of `MIGRATION_PLAN.md` accordingly before Fase 1 work goes deep.**
+**✅ Resolved 2026-08-24:** `new_trial_validation_app/` stays on `laravel/react-starter-kit` (**Inertia.js + React**, Fortify auth) instead of the plain API-only + separate Vite SPA + Sanctum originally described in `MIGRATION_PLAN.md` §2/§5 (draft is now stale on this point). Web pages are `Inertia::render()` responses under `routes/web.php`. `MIGRATION_PLAN.md` §2/§5 has been reconciled accordingly.
+
+**▶️ Start next session here:** SSO bridge is implemented and verified end-to-end locally (2026-08-24) — next unchecked item in Fase 0 below is porting RBAC into Policies. Read `MIGRATION_PLAN.md` §4 for the SSO design and §8 for the still-open DB-location/timezone decision before starting either.
 
 ### Fase 0 — Fondasi
 - [x] Scaffold new Laravel app (`new_trial_validation_app/`, Laravel React Starter Kit)
-- [ ] Reconcile Inertia-based scaffold with MIGRATION_PLAN.md §2/§5 (see open item above)
-- [ ] Decide physical location of the shared MySQL DB (MIGRATION_PLAN.md §8) + confirm network/firewall access between old and new servers
-- [ ] Implement `sso_tickets` table + old-app → new-app ticket issue/redirect
-- [ ] Implement new-app → old-app ticket consume route (`/sso/consume` in legacy `index.php`)
-- [ ] Port core RBAC from `bootstrap.php` into Laravel Policies
-- [ ] End-to-end test of SSO bridge both directions before migrating any real module
+- [x] Reconcile Inertia-based scaffold with MIGRATION_PLAN.md §2/§5 — resolved, keep Inertia (see above)
+- [x] Implement `sso_tickets` table + old-app → new-app ticket issue/redirect (design: MIGRATION_PLAN.md §4)
+- [x] Implement new-app → old-app ticket consume route (`/sso/consume` in legacy `index.php`)
+- [x] End-to-end test of SSO bridge both directions — verified locally 2026-08-24 against the shared MySQL DB (both directions, plus replay/expiry/bogus-ticket rejection). Found and fixed a real bug in the process: Laravel's default app timezone (UTC) didn't match the local MySQL server's timezone (SE Asia Standard Time), so `sso_tickets.expires_at` written by Laravel's `now()` always looked already-expired to legacy's `NOW()`-based checks. Fixed via `new_trial_validation_app/config/app.php` timezone now reading `APP_TIMEZONE` (set to `Asia/Jakarta` locally) — **whichever server ends up hosting the shared MySQL DB (§8) must have its timezone matched by `APP_TIMEZONE`,** or this breaks again.
+- [ ] **Next up:** Port core RBAC from `bootstrap.php` into Laravel Policies
+- [ ] Decide physical location of the shared MySQL DB (MIGRATION_PLAN.md §8) + confirm network/firewall access between old and new servers — **now also needs a timezone decision**, see above
 
 ### Fase 1 — Modul admin/master data (risiko rendah)
 - [ ] Users
