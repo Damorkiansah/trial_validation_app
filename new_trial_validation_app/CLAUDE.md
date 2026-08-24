@@ -57,9 +57,11 @@ Two gotchas hit while building this, relevant to any future model-mutating contr
 
 Legacy's Access Rights screen (role/department reassignment, reviewer-department master, draft-trial edit-permission grant/revoke) is a separate, Super-Admin-only, higher-risk piece — deferred to its own pass (see `../CLAUDE.md` Fase 1 checklist).
 
+**Products** (2026-08-24): `app/Http/Controllers/Admin/ProductController.php` (`admin.products.index/store/destroy`, routed from `routes/admin.php`) + `resources/js/pages/admin/products/index.tsx` — paginated list, edit-in-place via `?edit={id}`, create-or-update-by-id-or-name upsert, soft delete. No new Policy — reuses the `manage-templates` Gate from `AppServiceProvider::configureGates()` (Admin or Staff). New `App\Models\Product` maps onto the real shared `products` table (`product_name` unique, `finish_good_code`, `is_active`, `deleted_at`, `deleted_by` — no timestamp columns); its fresh-install migration follows the same `Schema::hasTable` guard pattern as the `users` migration. `finish_good_code` is plain free-text in legacy, no auto-generation logic — confirmed before porting.
+
 ### Not yet built
 
-Beyond the RBAC scaffolding and Users module above, no other domain code from the legacy app has been ported yet — no trial/review/approval controllers or full CRUD models. The `MasterOption` stub is a starting point for the Masters module.
+Beyond the RBAC scaffolding, Users, and Products modules above, no other domain code from the legacy app has been ported yet — no trial/review/approval controllers or full CRUD models. The `MasterOption` stub is a starting point for the Masters module.
 
 ### Reconciling with MIGRATION_PLAN.md
 
