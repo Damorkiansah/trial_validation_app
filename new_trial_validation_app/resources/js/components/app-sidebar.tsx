@@ -3,6 +3,7 @@ import {
     BookOpen,
     FlaskConical,
     FolderGit2,
+    KeyRound,
     LayoutGrid,
     Package,
     Users,
@@ -21,6 +22,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as accessRightsIndex } from '@/routes/admin/access-rights';
 import { index as parametersIndex } from '@/routes/admin/parameters';
 import { index as productsIndex } from '@/routes/admin/products';
 import { index as usersIndex } from '@/routes/admin/users';
@@ -41,8 +43,8 @@ const footerNavItems: NavItem[] = [
 
 export function AppSidebar() {
     const { auth } = usePage<{ auth: Auth }>().props;
-    const isAdmin =
-        auth.user.role === 'Admin' || auth.user.role === 'Super Admin';
+    const isSuperAdmin = auth.user.role === 'Super Admin';
+    const isAdmin = auth.user.role === 'Admin' || isSuperAdmin;
     const canManageTemplates = isAdmin || auth.user.role === 'Staff';
 
     const mainNavItems: NavItem[] = [
@@ -57,6 +59,15 @@ export function AppSidebar() {
                       title: 'Users',
                       href: usersIndex(),
                       icon: Users,
+                  },
+              ]
+            : []),
+        ...(isSuperAdmin
+            ? [
+                  {
+                      title: 'Access Rights',
+                      href: accessRightsIndex(),
+                      icon: KeyRound,
                   },
               ]
             : []),

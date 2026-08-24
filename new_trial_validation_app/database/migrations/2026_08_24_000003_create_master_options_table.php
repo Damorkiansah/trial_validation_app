@@ -21,7 +21,13 @@ return new class extends Migration
         // for the deleted_at/deleted_by columns added later). Used today by
         // App\Models\User's role/department helpers and the Parameters
         // module's product_type dropdown; full Masters CRUD is a later,
-        // separate Fase 1 item.
+        // separate Fase 1 item. The unique(type,name) index below wasn't
+        // found in any legacy migration file for this table (only inferred
+        // from the ON DUPLICATE KEY UPDATE upsert legacy's Access Rights
+        // screen relies on) — added here so the Access Rights reviewer-
+        // department upsert has a real constraint to lean on in every
+        // environment; harmless on the shared MySQL DB since this whole
+        // branch is skipped there.
         if (! Schema::hasTable('master_options')) {
             Schema::create('master_options', function (Blueprint $table) {
                 $table->id();
@@ -31,6 +37,7 @@ return new class extends Migration
                 $table->boolean('is_active')->default(true);
                 $table->dateTime('deleted_at')->nullable();
                 $table->unsignedInteger('deleted_by')->nullable();
+                $table->unique(['type', 'name']);
             });
         }
     }

@@ -52,4 +52,12 @@ class TrialEditPermission extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function grantedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'granted_by');
+    }
 }

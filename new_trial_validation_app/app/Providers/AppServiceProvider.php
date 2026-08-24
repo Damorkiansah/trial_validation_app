@@ -66,5 +66,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manage-parameters', fn (User $user) => $user->isAdmin() || $user->role === 'Staff');
         Gate::define('view-products-template', fn (User $user) => $user->isAdmin() || $user->role === 'Staff');
         Gate::define('manage-templates', fn (User $user) => $user->isAdmin() || $user->role === 'Staff');
+        // Port of the `is_super_admin()` check guarding legacy's
+        // /admin/access-rights screen (role/department reassignment,
+        // reviewer-department master, draft-trial edit-permission
+        // grant/revoke) — Super Admin only, no Admin fallback.
+        Gate::define('manage-access-rights', fn (User $user) => $user->isSuperAdmin());
     }
 }
