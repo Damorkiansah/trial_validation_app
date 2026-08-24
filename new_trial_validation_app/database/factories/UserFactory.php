@@ -5,7 +5,6 @@ namespace Database\Factories;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 /**
  * @extends Factory<User>
@@ -13,9 +12,9 @@ use Illuminate\Support\Str;
 class UserFactory extends Factory
 {
     /**
-     * The current password being used by the factory.
+     * The current password_hash being used by the factory.
      */
-    protected static ?string $password;
+    protected static ?string $passwordHash;
 
     /**
      * Define the model's default state.
@@ -27,24 +26,21 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
-            'remember_token' => Str::random(10),
+            'password_hash' => static::$passwordHash ??= Hash::make('password'),
+            'role' => 'Staff',
+            'department' => 'Staff',
+            'is_active' => true,
         ];
     }
 
     /**
-     * Indicate that the model's email address should be unverified.
+     * Indicate that the model should have a given role.
      */
-    public function unverified(): static
+    public function role(string $role, ?string $department = null): static
     {
         return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
+            'role' => $role,
+            'department' => $department ?? $role,
         ]);
     }
-
-    /**
-     * Indicate that the model has two-factor authentication configured.
-     */
-    public function withTwoFactor(): static {}
 }

@@ -12,19 +12,25 @@ return new class extends Migration
     public function up(): void
     {
         // `users` is shared with the legacy app's MySQL database and already
-        // exists there with a different schema (password_hash/role/department
-        // instead of password/email_verified_at/remember_token) — skip
-        // creating it when the app is pointed at that shared DB. On a fresh
-        // (e.g. sqlite) setup with no legacy data, it's created as usual.
+        // exists there with its own schema — skip creating it when the app
+        // is pointed at that shared DB. On a fresh (e.g. sqlite/test) setup
+        // with no legacy data, create a table matching that same legacy
+        // schema (see ../../../trial_validation_system.sql `users`), so
+        // App\Models\User (which maps to that schema — role/department/
+        // password_hash/is_active, no password/email_verified_at/
+        // remember_token/updated_at) behaves identically in every environment.
         if (! Schema::hasTable('users')) {
             Schema::create('users', function (Blueprint $table) {
                 $table->id();
-                $table->string('name');
-                $table->string('email')->unique();
-                $table->timestamp('email_verified_at')->nullable();
-                $table->string('password');
-                $table->rememberToken();
-                $table->timestamps();
+                $table->string('name', 120);
+                $table->string('email', 150)->unique();
+                $table->string('password_hash');
+                $table->string('role', 50);
+                $table->string('department', 50)->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamp('created_at')->useCurrent();
+                $table->dateTime('deleted_at')->nullable();
+                $table->unsignedInteger('deleted_by')->nullable();
             });
         }
 

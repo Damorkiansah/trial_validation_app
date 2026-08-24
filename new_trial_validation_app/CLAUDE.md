@@ -39,9 +39,17 @@ Official `laravel/react-starter-kit` scaffold — **Inertia.js**, not a decouple
 - `routes/web.php` / `routes/settings.php` — current routes are all Fortify/starter-kit boilerplate (profile, security settings) — no trial-validation domain routes exist yet.
 - `boost.json` / `.mcp.json` — Laravel Boost is configured, providing MCP tools for this Laravel app (schema/route/log introspection etc.) when available in this session.
 
+### RBAC / authorization (ported from legacy `bootstrap.php`, 2026-08-24)
+
+`app/Models/User.php` maps onto the **real** shared `users` table (`password_hash`, `role`, `department`, `is_active` — no `password`/`email_verified_at`/`remember_token`/`updated_at`), not the starter kit's default schema; the fresh-install migration branch (used by sqlite/tests) was changed to match this same shape so behavior is identical in every environment. It carries role/department helper methods (`isAdmin()`, `isStaff()`, `isReviewer()`, `reviewDepartmentsForUser()`, etc.) ported from `is_admin()`/`is_staff()`/`is_reviewer()`/`reviewer_department_codes()` in the legacy app.
+
+`app/Models/Trial.php`, `TrialReview.php`, `TrialEditPermission.php`, `MasterOption.php` are minimal stubs mapping onto the shared `trials_header`/`trials_review`/`trial_edit_permissions`/`master_options` tables — just enough for the RBAC port below; Fase 1 (Masters) and Fase 3 (trial workflow) will flesh them out with real CRUD/relations.
+
+`app/Policies/TrialPolicy.php` ports `can_view_trial()`/`can_edit()`/`can_approve_trial()` (`view`/`update`/`approve` abilities — auto-discovered by Laravel via the `Trial`/`TrialPolicy` naming convention, no manual registration needed). `Trial::scopeVisibleTo()` ports the row-level list-scoping query from `scoped_trials_parts()` — use it wherever a trials list needs to be restricted to what the current user may see. Simple admin-only checks that aren't tied to a model instance (`can_manage_master()` etc.) are registered as Gates in `AppServiceProvider::configureGates()` (`manage-settings`, `manage-master`, `manage-parameters`, `view-products-template`, `manage-templates`).
+
 ### Not yet built
 
-No domain code from the legacy app has been ported yet — no trial/review/approval models, controllers, or migrations beyond the starter kit's own `User` model. When starting Fase 1 work (see `../CLAUDE.md`), this is a clean slate for the admin/master-data modules.
+Beyond the RBAC scaffolding above, no domain code from the legacy app has been ported yet — no real trial/review/approval controllers or full CRUD models. When starting Fase 1 work (see `../CLAUDE.md`), this is close to a clean slate for the admin/master-data modules (the `MasterOption` stub above is a starting point for the Masters module).
 
 ### Reconciling with MIGRATION_PLAN.md
 
