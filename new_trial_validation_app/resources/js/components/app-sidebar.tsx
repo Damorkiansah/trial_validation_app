@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid, Users } from 'lucide-react';
+import { BookOpen, FolderGit2, LayoutGrid, Package, Users } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -14,6 +14,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as productsIndex } from '@/routes/admin/products';
 import { index as usersIndex } from '@/routes/admin/users';
 import type { Auth, NavItem } from '@/types';
 
@@ -34,6 +35,7 @@ export function AppSidebar() {
     const { auth } = usePage<{ auth: Auth }>().props;
     const isAdmin =
         auth.user.role === 'Admin' || auth.user.role === 'Super Admin';
+    const canManageTemplates = isAdmin || auth.user.role === 'Staff';
 
     const mainNavItems: NavItem[] = [
         {
@@ -47,6 +49,15 @@ export function AppSidebar() {
                       title: 'Users',
                       href: usersIndex(),
                       icon: Users,
+                  },
+              ]
+            : []),
+        ...(canManageTemplates
+            ? [
+                  {
+                      title: 'Products',
+                      href: productsIndex(),
+                      icon: Package,
                   },
               ]
             : []),
