@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { dashboard } from '@/routes';
-import { index as trialsIndex } from '@/routes/trials';
+import { create as createTrial, index as trialsIndex } from '@/routes/trials';
 import type { Paginated } from '@/types';
 
 type Filters = {
@@ -26,6 +26,7 @@ type PageProps = {
     pageTitle: string;
     pageSubtitle: string;
     group: string;
+    canCreateTrial: boolean;
 };
 
 export default function TrialsIndex({
@@ -35,6 +36,7 @@ export default function TrialsIndex({
     pageTitle,
     pageSubtitle,
     group,
+    canCreateTrial,
 }: PageProps) {
     const [form, setForm] = useState<Filters>(filters);
     const url = trialsIndex(group).url;
@@ -53,7 +55,14 @@ export default function TrialsIndex({
             <Head title={pageTitle} />
 
             <div className="space-y-6 p-4">
-                <Heading title={pageTitle} description={pageSubtitle} />
+                <div className="flex items-start justify-between gap-4">
+                    <Heading title={pageTitle} description={pageSubtitle} />
+                    {canCreateTrial && (
+                        <Button asChild>
+                            <Link href={createTrial().url}>New Trial</Link>
+                        </Button>
+                    )}
+                </div>
 
                 <Card>
                     <CardContent>

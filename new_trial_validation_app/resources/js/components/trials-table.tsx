@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import {
     createColumnHelper,
     flexRender,
@@ -6,6 +7,7 @@ import {
 } from '@tanstack/react-table';
 import { PaginationFooter } from '@/components/pagination-footer';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
     Table,
@@ -16,6 +18,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import { edit as editTrial } from '@/routes/trials';
 import type { Paginated } from '@/types';
 
 export type TrialRow = {
@@ -29,6 +32,7 @@ export type TrialRow = {
     current_step: string | null;
     created_at: string;
     pending_with: string | null;
+    can_edit: boolean;
 };
 
 const columnHelper = createColumnHelper<TrialRow>();
@@ -60,6 +64,18 @@ const columns = [
     columnHelper.accessor('pending_with', {
         header: 'Pending With',
         cell: (info) => info.getValue() ?? '-',
+    }),
+    columnHelper.display({
+        id: 'actions',
+        header: 'Action',
+        cell: (info) =>
+            info.row.original.can_edit ? (
+                <Button asChild variant="outline" size="sm">
+                    <Link href={editTrial(info.row.original.id).url}>Edit</Link>
+                </Button>
+            ) : (
+                '-'
+            ),
     }),
 ];
 

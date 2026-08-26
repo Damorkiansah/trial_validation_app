@@ -54,7 +54,18 @@ class Trial extends Model
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
             'deleted_at' => 'datetime',
+            'validation_scope' => 'array',
+            'machine_used' => 'array',
+            'estimate_qty' => 'decimal:2',
         ];
+    }
+
+    /**
+     * @return BelongsTo<Product, $this>
+     */
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class, 'product_id');
     }
 
     /**

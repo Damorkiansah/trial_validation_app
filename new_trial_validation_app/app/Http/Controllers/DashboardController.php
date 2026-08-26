@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\MasterOption;
 use App\Models\Trial;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -14,9 +15,8 @@ use Inertia\Response;
  * Fase 0) plus summary counts (Trial::summaryCounts()) and the same search
  * filters used by the trials-list pages (Trial::scopeSearch()).
  *
- * Read-only by design (Fase 2) — legacy's "New Trial" button and per-row
- * Action column both link to pages that don't exist yet (Fase 3), so neither
- * is ported here.
+ * Fase 3 adds the "New Trial" button back (legacy's, and per-row Action
+ * column now that trials.create/edit exist) — see TrialController.
  */
 class DashboardController extends Controller
 {
@@ -40,6 +40,10 @@ class DashboardController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        $trials->getCollection()->each(function (Trial $trial) use ($user) {
+            $trial->setAttribute('can_edit', Gate::forUser($user)->allows('update', $trial));
+        });
+
         $summary = Trial::summaryCounts($user);
 
         $productTypes = MasterOption::query()
@@ -54,6 +58,7 @@ class DashboardController extends Controller
             'filters' => $filters,
             'productTypes' => $productTypes,
             'summary' => $summary,
+            'canCreateTrial' => Gate::forUser($user)->allows('create', Trial::class),
         ]);
     }
 }
