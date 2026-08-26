@@ -3,12 +3,14 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import { TrialsTable } from '@/components/trials-table';
-import type { Paginated, TrialRow } from '@/components/trials-table';
+import type { TrialRow } from '@/components/trials-table';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { dashboard } from '@/routes';
 import { index as trialsIndex } from '@/routes/trials';
+import type { Paginated } from '@/types';
 
 type Filters = {
     q: string;
@@ -53,78 +55,87 @@ export default function TrialsIndex({
             <div className="space-y-6 p-4">
                 <Heading title={pageTitle} description={pageSubtitle} />
 
-                <form
-                    onSubmit={submit}
-                    className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-5"
-                >
-                    <div className="grid gap-2 lg:col-span-2">
-                        <Label htmlFor="q">Search</Label>
-                        <Input
-                            id="q"
-                            placeholder="Trial, product, FG code, scope, machine"
-                            value={form.q}
-                            onChange={(e) =>
-                                setForm({ ...form, q: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="product_type">Product Type</Label>
-                        <select
-                            id="product_type"
-                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs dark:bg-input/30"
-                            value={form.product_type}
-                            onChange={(e) =>
-                                setForm({
-                                    ...form,
-                                    product_type: e.target.value,
-                                })
-                            }
+                <Card>
+                    <CardContent>
+                        <form
+                            onSubmit={submit}
+                            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5"
                         >
-                            <option value="">Semua kategori</option>
-                            {productTypes.map((type) => (
-                                <option key={type} value={type}>
-                                    {type}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="date_from">Tanggal Dari</Label>
-                        <Input
-                            id="date_from"
-                            type="date"
-                            value={form.date_from}
-                            onChange={(e) =>
-                                setForm({
-                                    ...form,
-                                    date_from: e.target.value,
-                                })
-                            }
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="date_to">Tanggal Sampai</Label>
-                        <Input
-                            id="date_to"
-                            type="date"
-                            value={form.date_to}
-                            onChange={(e) =>
-                                setForm({ ...form, date_to: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="flex items-end gap-2 lg:col-span-5">
-                        <Button type="submit">Search</Button>
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={reset}
-                        >
-                            Reset
-                        </Button>
-                    </div>
-                </form>
+                            <div className="grid gap-2 lg:col-span-2">
+                                <Label htmlFor="q">Search</Label>
+                                <Input
+                                    id="q"
+                                    placeholder="Trial, product, FG code, scope, machine"
+                                    value={form.q}
+                                    onChange={(e) =>
+                                        setForm({ ...form, q: e.target.value })
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="product_type">
+                                    Product Type
+                                </Label>
+                                <select
+                                    id="product_type"
+                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs dark:bg-input/30"
+                                    value={form.product_type}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            product_type: e.target.value,
+                                        })
+                                    }
+                                >
+                                    <option value="">Semua kategori</option>
+                                    {productTypes.map((type) => (
+                                        <option key={type} value={type}>
+                                            {type}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="date_from">Tanggal Dari</Label>
+                                <Input
+                                    id="date_from"
+                                    type="date"
+                                    value={form.date_from}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            date_from: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="date_to">Tanggal Sampai</Label>
+                                <Input
+                                    id="date_to"
+                                    type="date"
+                                    value={form.date_to}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            date_to: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="flex items-end gap-2 lg:col-span-5">
+                                <Button type="submit">Search</Button>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={reset}
+                                >
+                                    Reset
+                                </Button>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
 
                 <TrialsTable
                     trials={trials}

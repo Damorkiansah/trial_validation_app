@@ -2,17 +2,18 @@ import { Form, Head, router } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import AccessRightController from '@/actions/App/Http/Controllers/Admin/AccessRightController';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { PaginationFooter } from '@/components/pagination-footer';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Dialog,
-    DialogClose,
     DialogContent,
-    DialogDescription,
     DialogFooter,
+    DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,16 +24,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { index as accessRightsIndex } from '@/routes/admin/access-rights';
-import type { User } from '@/types';
-
-type Paginated<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-};
+import type { Paginated, User } from '@/types';
 
 type ReviewerDepartment = {
     id: number;
@@ -70,7 +71,6 @@ type PageProps = {
     auth: { user: User };
     users: Paginated<User>;
     filters: { q: string };
-    editUser: User | null;
     roleCategories: string[];
     reviewerDepartments: ReviewerDepartment[];
     draftTrials: DraftTrial[];
@@ -78,89 +78,219 @@ type PageProps = {
     draftPermissions: DraftPermission[];
 };
 
-function DeleteReviewerDepartmentButton({
-    department,
+function EditRoleDialog({
+    open,
+    onOpenChange,
+    editingUser,
+    roleCategories,
 }: {
-    department: ReviewerDepartment;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    editingUser: User | null;
+    roleCategories: string[];
 }) {
     return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                    Delete
-                </Button>
-            </DialogTrigger>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
-                <DialogTitle>Delete this reviewer department?</DialogTitle>
-                <DialogDescription>
-                    {department.name} will be removed from the reviewer
-                    department list.
-                </DialogDescription>
-                <DialogFooter className="gap-2">
-                    <DialogClose asChild>
-                        <Button variant="secondary">Cancel</Button>
-                    </DialogClose>
+                <DialogHeader>
+                    <DialogTitle>Edit Role & Department</DialogTitle>
+                </DialogHeader>
+                {editingUser && (
                     <Form
-                        {...AccessRightController.destroyReviewerDepartment.form(
-                            department.id,
+                        {...AccessRightController.updateRole.form(
+                            editingUser.id,
                         )}
                         options={{ preserveScroll: true }}
+                        onSuccess={() => onOpenChange(false)}
+                        className="grid gap-4"
                     >
-                        {({ processing }) => (
-                            <Button
-                                type="submit"
-                                variant="destructive"
-                                disabled={processing}
-                            >
-                                Delete
-                            </Button>
+                        {({ processing, errors }) => (
+                            <>
+                                <div className="grid gap-2">
+                                    <Label>User</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        {editingUser.name} ({editingUser.email})
+                                    </p>
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="role">Role</Label>
+                                    <Select
+                                        name="role"
+                                        defaultValue={editingUser.role}
+                                    >
+                                        <SelectTrigger id="role">
+                                            <SelectValue placeholder="Role" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {roleCategories.map((role) => (
+                                                <SelectItem
+                                                    key={role}
+                                                    value={role}
+                                                >
+                                                    {role}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <InputError message={errors.role} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="department">
+                                        Department
+                                    </Label>
+                                    <Input
+                                        id="department"
+                                        name="department"
+                                        defaultValue={
+                                            editingUser.department ?? ''
+                                        }
+                                        placeholder="Auto untuk role reviewer"
+                                    />
+                                    <InputError message={errors.department} />
+                                </div>
+
+                                <DialogFooter>
+                                    <Button type="submit" disabled={processing}>
+                                        Save Changes
+                                    </Button>
+                                </DialogFooter>
+                            </>
                         )}
                     </Form>
-                </DialogFooter>
+                )}
             </DialogContent>
         </Dialog>
     );
 }
 
-function RevokePermissionButton({
-    permission,
+function ReviewerDepartmentFormDialog({
+    open,
+    onOpenChange,
 }: {
-    permission: DraftPermission;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
 }) {
     return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                    Revoke
-                </Button>
-            </DialogTrigger>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
-                <DialogTitle>Revoke this edit permission?</DialogTitle>
-                <DialogDescription>
-                    {permission.user?.name} won&apos;t be able to edit{' '}
-                    {permission.trial?.trial_code} anymore.
-                </DialogDescription>
-                <DialogFooter className="gap-2">
-                    <DialogClose asChild>
-                        <Button variant="secondary">Cancel</Button>
-                    </DialogClose>
-                    <Form
-                        {...AccessRightController.revokePermission.form(
-                            permission.id,
-                        )}
-                        options={{ preserveScroll: true }}
-                    >
-                        {({ processing }) => (
-                            <Button
-                                type="submit"
-                                variant="destructive"
-                                disabled={processing}
-                            >
-                                Revoke
-                            </Button>
-                        )}
-                    </Form>
-                </DialogFooter>
+                <DialogHeader>
+                    <DialogTitle>Add Reviewer Department</DialogTitle>
+                </DialogHeader>
+                <Form
+                    {...AccessRightController.storeReviewerDepartment.form()}
+                    options={{ preserveScroll: true }}
+                    onSuccess={() => onOpenChange(false)}
+                    resetOnSuccess={['name', 'sort_order']}
+                    className="grid gap-4"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <div className="grid gap-2">
+                                <Label htmlFor="name">Nama Department</Label>
+                                <Input id="name" name="name" required />
+                                <InputError message={errors.name} />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="sort_order">Sort</Label>
+                                <Input
+                                    id="sort_order"
+                                    name="sort_order"
+                                    type="number"
+                                    defaultValue={0}
+                                />
+                                <InputError message={errors.sort_order} />
+                            </div>
+
+                            <DialogFooter>
+                                <Button type="submit" disabled={processing}>
+                                    Add Department
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function GrantPermissionFormDialog({
+    open,
+    onOpenChange,
+    draftTrials,
+    staffUsers,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    draftTrials: DraftTrial[];
+    staffUsers: StaffUser[];
+}) {
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Grant Draft Report Edit Access</DialogTitle>
+                </DialogHeader>
+                <Form
+                    {...AccessRightController.grantPermission.form()}
+                    options={{ preserveScroll: true }}
+                    onSuccess={() => onOpenChange(false)}
+                    className="grid gap-4"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <div className="grid gap-2">
+                                <Label htmlFor="trial_id">Draft Report</Label>
+                                <Select name="trial_id">
+                                    <SelectTrigger id="trial_id">
+                                        <SelectValue placeholder="Pilih Draft report" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {draftTrials.map((trial) => (
+                                            <SelectItem
+                                                key={trial.id}
+                                                value={String(trial.id)}
+                                            >
+                                                {trial.trial_code} —{' '}
+                                                {trial.product_name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.trial_id} />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="user_id">Staff User</Label>
+                                <Select name="user_id">
+                                    <SelectTrigger id="user_id">
+                                        <SelectValue placeholder="Pilih Staff" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {staffUsers.map((staff) => (
+                                            <SelectItem
+                                                key={staff.id}
+                                                value={String(staff.id)}
+                                            >
+                                                {staff.name} ({staff.email})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.user_id} />
+                            </div>
+
+                            <DialogFooter>
+                                <Button type="submit" disabled={processing}>
+                                    Grant Access
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </Form>
             </DialogContent>
         </Dialog>
     );
@@ -170,7 +300,6 @@ export default function AdminAccessRightsIndex({
     auth,
     users,
     filters,
-    editUser,
     roleCategories,
     reviewerDepartments,
     draftTrials,
@@ -178,6 +307,9 @@ export default function AdminAccessRightsIndex({
     draftPermissions,
 }: PageProps) {
     const [search, setSearch] = useState(filters.q);
+    const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [departmentDialogOpen, setDepartmentDialogOpen] = useState(false);
+    const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
 
     function submitSearch(e: FormEvent) {
         e.preventDefault();
@@ -198,412 +330,242 @@ export default function AdminAccessRightsIndex({
                     description="Super Admin only: reassign role/department, kelola master reviewer department, dan izin edit Draft report."
                 />
 
-                <section className="space-y-4 rounded-lg border p-4">
-                    <h2 className="text-lg font-semibold">
-                        User Role & Department
-                    </h2>
+                <EditRoleDialog
+                    open={editingUser !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setEditingUser(null);
+                        }
+                    }}
+                    editingUser={editingUser}
+                    roleCategories={roleCategories}
+                />
 
-                    {editUser && (
-                        <Form
-                            {...AccessRightController.updateRole.form(
-                                editUser.id,
-                            )}
-                            options={{ preserveScroll: true }}
-                            className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4"
+                <Card>
+                    <CardHeader>
+                        <CardTitle>User Role & Department</CardTitle>
+                        <form
+                            onSubmit={submitSearch}
+                            className="flex items-end gap-2 pt-2"
                         >
-                            {({ processing, errors }) => (
-                                <>
-                                    <div className="grid gap-2 sm:col-span-2 lg:col-span-4">
-                                        <Label>Editing</Label>
-                                        <p className="text-sm text-muted-foreground">
-                                            {editUser.name} ({editUser.email})
-                                        </p>
-                                        <InputError message={errors.role} />
-                                    </div>
-
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="role">Role</Label>
-                                        <Select
-                                            name="role"
-                                            defaultValue={editUser.role}
-                                        >
-                                            <SelectTrigger id="role">
-                                                <SelectValue placeholder="Role" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {roleCategories.map((role) => (
-                                                    <SelectItem
-                                                        key={role}
-                                                        value={role}
-                                                    >
-                                                        {role}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="department">
-                                            Department
-                                        </Label>
-                                        <Input
-                                            id="department"
-                                            name="department"
-                                            defaultValue={
-                                                editUser.department ?? ''
-                                            }
-                                            placeholder="Auto untuk role reviewer"
-                                        />
-                                        <InputError
-                                            message={errors.department}
-                                        />
-                                    </div>
-
-                                    <div className="flex items-end gap-2">
-                                        <Button
-                                            type="submit"
-                                            disabled={processing}
-                                        >
-                                            Update Role
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            onClick={() =>
-                                                router.get(
-                                                    accessRightsIndex().url,
-                                                )
-                                            }
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </div>
-                                </>
-                            )}
-                        </Form>
-                    )}
-
-                    <form
-                        onSubmit={submitSearch}
-                        className="flex items-end gap-2"
-                    >
-                        <div className="grid gap-2">
-                            <Label htmlFor="q">Search User</Label>
-                            <Input
-                                id="q"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Nama, email, role, department"
-                            />
-                        </div>
-                        <Button type="submit" variant="secondary">
-                            Search
-                        </Button>
-                    </form>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b text-left">
-                                    <th className="p-2">Name</th>
-                                    <th className="p-2">Email</th>
-                                    <th className="p-2">Role</th>
-                                    <th className="p-2">Dept</th>
-                                    <th className="p-2">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                            <div className="grid gap-2 sm:max-w-sm">
+                                <Label htmlFor="q">Search User</Label>
+                                <Input
+                                    id="q"
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    placeholder="Nama, email, role, department"
+                                />
+                            </div>
+                            <Button type="submit" variant="secondary">
+                                Search
+                            </Button>
+                        </form>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead>Role</TableHead>
+                                    <TableHead>Dept</TableHead>
+                                    <TableHead>Action</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {users.data.map((usr) => (
-                                    <tr key={usr.id} className="border-b">
-                                        <td className="p-2">{usr.name}</td>
-                                        <td className="p-2">{usr.email}</td>
-                                        <td className="p-2">{usr.role}</td>
-                                        <td className="p-2">
-                                            {usr.department}
-                                        </td>
-                                        <td className="p-2">
+                                    <TableRow key={usr.id}>
+                                        <TableCell>{usr.name}</TableCell>
+                                        <TableCell>{usr.email}</TableCell>
+                                        <TableCell>{usr.role}</TableCell>
+                                        <TableCell>{usr.department}</TableCell>
+                                        <TableCell>
                                             {usr.id !== auth.user.id && (
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() =>
-                                                        router.get(
-                                                            accessRightsIndex()
-                                                                .url,
-                                                            {
-                                                                q: filters.q,
-                                                                edit: usr.id,
-                                                            },
-                                                        )
+                                                        setEditingUser(usr)
                                                     }
                                                 >
                                                     Edit
                                                 </Button>
                                             )}
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
                                 {users.data.length === 0 && (
-                                    <tr>
-                                        <td
+                                    <TableRow>
+                                        <TableCell
                                             colSpan={5}
                                             className="p-4 text-center text-muted-foreground"
                                         >
                                             Belum ada user.
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 )}
-                            </tbody>
-                        </table>
-                    </div>
+                            </TableBody>
+                        </Table>
 
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>
-                            Page {users.current_page} of {users.last_page} (
-                            {users.total} users)
-                        </span>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={users.current_page <= 1}
-                                onClick={() =>
-                                    router.get(
-                                        accessRightsIndex().url,
-                                        {
-                                            q: filters.q,
-                                            page: users.current_page - 1,
-                                        },
-                                        { preserveState: true },
-                                    )
-                                }
-                            >
-                                Previous
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={users.current_page >= users.last_page}
-                                onClick={() =>
-                                    router.get(
-                                        accessRightsIndex().url,
-                                        {
-                                            q: filters.q,
-                                            page: users.current_page + 1,
-                                        },
-                                        { preserveState: true },
-                                    )
-                                }
-                            >
-                                Next
-                            </Button>
-                        </div>
-                    </div>
-                </section>
+                        <PaginationFooter
+                            url={accessRightsIndex().url}
+                            query={{ q: filters.q }}
+                            currentPage={users.current_page}
+                            lastPage={users.last_page}
+                            total={users.total}
+                            itemLabel="users"
+                        />
+                    </CardContent>
+                </Card>
 
-                <section className="space-y-4 rounded-lg border p-4">
-                    <h2 className="text-lg font-semibold">
-                        Reviewer Department Master
-                    </h2>
+                <ReviewerDepartmentFormDialog
+                    open={departmentDialogOpen}
+                    onOpenChange={setDepartmentDialogOpen}
+                />
 
-                    <Form
-                        {...AccessRightController.storeReviewerDepartment.form()}
-                        options={{ preserveScroll: true }}
-                        resetOnSuccess={['name', 'sort_order']}
-                        className="grid gap-4 rounded-lg border p-4 sm:grid-cols-3"
-                    >
-                        {({ processing, errors }) => (
-                            <>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name">
-                                        Nama Department
-                                    </Label>
-                                    <Input id="name" name="name" required />
-                                    <InputError message={errors.name} />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="sort_order">Sort</Label>
-                                    <Input
-                                        id="sort_order"
-                                        name="sort_order"
-                                        type="number"
-                                        defaultValue={0}
-                                    />
-                                    <InputError message={errors.sort_order} />
-                                </div>
-
-                                <div className="flex items-end">
-                                    <Button type="submit" disabled={processing}>
-                                        Add Department
-                                    </Button>
-                                </div>
-                            </>
-                        )}
-                    </Form>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b text-left">
-                                    <th className="p-2">Name</th>
-                                    <th className="p-2">Sort</th>
-                                    <th className="p-2">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                <Card>
+                    <CardHeader className="flex-row items-center justify-between">
+                        <CardTitle>Reviewer Department Master</CardTitle>
+                        <Button
+                            type="button"
+                            onClick={() => setDepartmentDialogOpen(true)}
+                        >
+                            Add Department
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Sort</TableHead>
+                                    <TableHead>Action</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {reviewerDepartments.map((department) => (
-                                    <tr
-                                        key={department.id}
-                                        className="border-b"
-                                    >
-                                        <td className="p-2">
-                                            {department.name}
-                                        </td>
-                                        <td className="p-2">
+                                    <TableRow key={department.id}>
+                                        <TableCell>{department.name}</TableCell>
+                                        <TableCell>
                                             {department.sort_order}
-                                        </td>
-                                        <td className="p-2">
-                                            <DeleteReviewerDepartmentButton
-                                                department={department}
+                                        </TableCell>
+                                        <TableCell>
+                                            <ConfirmDialog
+                                                trigger={
+                                                    <Button
+                                                        variant="destructive"
+                                                        size="sm"
+                                                    >
+                                                        Delete
+                                                    </Button>
+                                                }
+                                                title="Delete this reviewer department?"
+                                                description={`${department.name} will be removed from the reviewer department list.`}
+                                                confirmLabel="Delete"
+                                                formProps={AccessRightController.destroyReviewerDepartment.form(
+                                                    department.id,
+                                                )}
                                             />
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
                                 {reviewerDepartments.length === 0 && (
-                                    <tr>
-                                        <td
+                                    <TableRow>
+                                        <TableCell
                                             colSpan={3}
                                             className="p-4 text-center text-muted-foreground"
                                         >
                                             Belum ada reviewer department
                                             custom.
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 )}
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
 
-                <section className="space-y-4 rounded-lg border p-4">
-                    <h2 className="text-lg font-semibold">
-                        Draft Report Edit Permission
-                    </h2>
+                <GrantPermissionFormDialog
+                    open={permissionDialogOpen}
+                    onOpenChange={setPermissionDialogOpen}
+                    draftTrials={draftTrials}
+                    staffUsers={staffUsers}
+                />
 
-                    <Form
-                        {...AccessRightController.grantPermission.form()}
-                        options={{ preserveScroll: true }}
-                        className="grid gap-4 rounded-lg border p-4 sm:grid-cols-3"
-                    >
-                        {({ processing, errors }) => (
-                            <>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="trial_id">
-                                        Draft Report
-                                    </Label>
-                                    <Select name="trial_id">
-                                        <SelectTrigger id="trial_id">
-                                            <SelectValue placeholder="Pilih Draft report" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {draftTrials.map((trial) => (
-                                                <SelectItem
-                                                    key={trial.id}
-                                                    value={String(trial.id)}
-                                                >
-                                                    {trial.trial_code} —{' '}
-                                                    {trial.product_name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <InputError message={errors.trial_id} />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="user_id">Staff User</Label>
-                                    <Select name="user_id">
-                                        <SelectTrigger id="user_id">
-                                            <SelectValue placeholder="Pilih Staff" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {staffUsers.map((staff) => (
-                                                <SelectItem
-                                                    key={staff.id}
-                                                    value={String(staff.id)}
-                                                >
-                                                    {staff.name} ({staff.email})
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <InputError message={errors.user_id} />
-                                </div>
-
-                                <div className="flex items-end">
-                                    <Button type="submit" disabled={processing}>
-                                        Grant Access
-                                    </Button>
-                                </div>
-                            </>
-                        )}
-                    </Form>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b text-left">
-                                    <th className="p-2">Draft Report</th>
-                                    <th className="p-2">Owner</th>
-                                    <th className="p-2">Granted To</th>
-                                    <th className="p-2">Granted By</th>
-                                    <th className="p-2">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                <Card>
+                    <CardHeader className="flex-row items-center justify-between">
+                        <CardTitle>Draft Report Edit Permission</CardTitle>
+                        <Button
+                            type="button"
+                            onClick={() => setPermissionDialogOpen(true)}
+                        >
+                            Grant Access
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Draft Report</TableHead>
+                                    <TableHead>Owner</TableHead>
+                                    <TableHead>Granted To</TableHead>
+                                    <TableHead>Granted By</TableHead>
+                                    <TableHead>Action</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {draftPermissions.map((permission) => (
-                                    <tr
-                                        key={permission.id}
-                                        className="border-b"
-                                    >
-                                        <td className="p-2">
+                                    <TableRow key={permission.id}>
+                                        <TableCell>
                                             {permission.trial?.trial_code} —{' '}
                                             {permission.trial?.product_name}
-                                        </td>
-                                        <td className="p-2">
+                                        </TableCell>
+                                        <TableCell>
                                             {permission.trial?.created_by}
-                                        </td>
-                                        <td className="p-2">
+                                        </TableCell>
+                                        <TableCell>
                                             {permission.user?.name} (
                                             {permission.user?.email})
-                                        </td>
-                                        <td className="p-2">
+                                        </TableCell>
+                                        <TableCell>
                                             {permission.granted_by?.name ?? '-'}
-                                        </td>
-                                        <td className="p-2">
-                                            <RevokePermissionButton
-                                                permission={permission}
+                                        </TableCell>
+                                        <TableCell>
+                                            <ConfirmDialog
+                                                trigger={
+                                                    <Button
+                                                        variant="destructive"
+                                                        size="sm"
+                                                    >
+                                                        Revoke
+                                                    </Button>
+                                                }
+                                                title="Revoke this edit permission?"
+                                                description={`${permission.user?.name} won't be able to edit ${permission.trial?.trial_code} anymore.`}
+                                                confirmLabel="Revoke"
+                                                formProps={AccessRightController.revokePermission.form(
+                                                    permission.id,
+                                                )}
                                             />
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
                                 {draftPermissions.length === 0 && (
-                                    <tr>
-                                        <td
+                                    <TableRow>
+                                        <TableCell
                                             colSpan={5}
                                             className="p-4 text-center text-muted-foreground"
                                         >
                                             Belum ada izin edit Draft report
                                             yang aktif.
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 )}
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
             </div>
         </>
     );

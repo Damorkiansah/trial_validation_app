@@ -13,6 +13,14 @@ export type FlashToast = {
     message: string;
 };
 
+export type Paginated<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+};
+
 export type AuthLayoutProps = {
     children?: ReactNode;
     name?: string;

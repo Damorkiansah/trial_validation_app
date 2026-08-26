@@ -1,13 +1,22 @@
-import { router } from '@inertiajs/react';
 import {
     createColumnHelper,
     flexRender,
     getCoreRowModel,
     useReactTable,
 } from '@tanstack/react-table';
+import { PaginationFooter } from '@/components/pagination-footer';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { trialStatusBadgeClassName } from '@/lib/trial-status';
+import type { Paginated } from '@/types';
 
 export type TrialRow = {
     id: number;
@@ -20,14 +29,6 @@ export type TrialRow = {
     current_step: string | null;
     created_at: string;
     pending_with: string | null;
-};
-
-export type Paginated<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
 };
 
 const columnHelper = createColumnHelper<TrialRow>();
@@ -81,82 +82,59 @@ export function TrialsTable({
         getCoreRowModel: getCoreRowModel(),
     });
 
-    function goToPage(page: number) {
-        router.get(url, { ...query, page }, { preserveState: true });
-    }
-
     return (
-        <div className="space-y-4 rounded-lg border p-4">
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                    <thead>
+        <Card>
+            <CardContent className="space-y-4">
+                <Table>
+                    <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
-                            <tr
-                                key={headerGroup.id}
-                                className="border-b text-left"
-                            >
+                            <TableRow key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => (
-                                    <th key={header.id} className="p-2">
+                                    <TableHead key={header.id}>
                                         {flexRender(
                                             header.column.columnDef.header,
                                             header.getContext(),
                                         )}
-                                    </th>
+                                    </TableHead>
                                 ))}
-                            </tr>
+                            </TableRow>
                         ))}
-                    </thead>
-                    <tbody>
+                    </TableHeader>
+                    <TableBody>
                         {table.getRowModel().rows.map((row) => (
-                            <tr key={row.id} className="border-b align-top">
+                            <TableRow key={row.id} className="align-top">
                                 {row.getVisibleCells().map((cell) => (
-                                    <td key={cell.id} className="p-2">
+                                    <TableCell key={cell.id}>
                                         {flexRender(
                                             cell.column.columnDef.cell,
                                             cell.getContext(),
                                         )}
-                                    </td>
+                                    </TableCell>
                                 ))}
-                            </tr>
+                            </TableRow>
                         ))}
                         {trials.data.length === 0 && (
-                            <tr>
-                                <td
+                            <TableRow>
+                                <TableCell
                                     colSpan={columns.length}
                                     className="p-4 text-center text-muted-foreground"
                                 >
                                     {emptyMessage}
-                                </td>
-                            </tr>
+                                </TableCell>
+                            </TableRow>
                         )}
-                    </tbody>
-                </table>
-            </div>
+                    </TableBody>
+                </Table>
 
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>
-                    Page {trials.current_page} of {trials.last_page} (
-                    {trials.total} trials)
-                </span>
-                <div className="flex gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={trials.current_page <= 1}
-                        onClick={() => goToPage(trials.current_page - 1)}
-                    >
-                        Previous
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={trials.current_page >= trials.last_page}
-                        onClick={() => goToPage(trials.current_page + 1)}
-                    >
-                        Next
-                    </Button>
-                </div>
-            </div>
-        </div>
+                <PaginationFooter
+                    url={url}
+                    query={query}
+                    currentPage={trials.current_page}
+                    lastPage={trials.last_page}
+                    total={trials.total}
+                    itemLabel="trials"
+                />
+            </CardContent>
+        </Card>
     );
 }

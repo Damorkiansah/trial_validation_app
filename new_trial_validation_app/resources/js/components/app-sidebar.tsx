@@ -1,9 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     Bell,
-    BookOpen,
     FlaskConical,
-    FolderGit2,
     History,
     KeyRound,
     LayoutGrid,
@@ -13,7 +11,6 @@ import {
     Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -34,20 +31,7 @@ import { index as parametersIndex } from '@/routes/admin/parameters';
 import { index as productsIndex } from '@/routes/admin/products';
 import { index as trashIndex } from '@/routes/admin/trash';
 import { index as usersIndex } from '@/routes/admin/users';
-import type { Auth, NavItem } from '@/types';
-
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: FolderGit2,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
-    },
-];
+import type { Auth, NavGroup } from '@/types';
 
 export function AppSidebar() {
     const { auth } = usePage<{ auth: Auth }>().props;
@@ -55,64 +39,84 @@ export function AppSidebar() {
     const isAdmin = auth.user.role === 'Admin' || isSuperAdmin;
     const canManageTemplates = isAdmin || auth.user.role === 'Staff';
 
-    const mainNavItems: NavItem[] = [
+    const navGroups: NavGroup[] = [
         {
-            title: 'Dashboard',
-            href: dashboard(),
-            icon: LayoutGrid,
+            label: 'Overview',
+            items: [
+                {
+                    title: 'Dashboard',
+                    href: dashboard(),
+                    icon: LayoutGrid,
+                },
+            ],
         },
-        ...(isAdmin
-            ? [
-                  {
-                      title: 'Users',
-                      href: usersIndex(),
-                      icon: Users,
-                  },
-                  {
-                      title: 'Notifications',
-                      href: notificationsIndex(),
-                      icon: Bell,
-                  },
-                  {
-                      title: 'Trash',
-                      href: trashIndex(),
-                      icon: Trash2,
-                  },
-                  {
-                      title: 'Activity Logs',
-                      href: activityLogsIndex(),
-                      icon: History,
-                  },
-              ]
-            : []),
-        ...(isSuperAdmin
-            ? [
-                  {
-                      title: 'Access Rights',
-                      href: accessRightsIndex(),
-                      icon: KeyRound,
-                  },
-              ]
-            : []),
-        ...(canManageTemplates
-            ? [
-                  {
-                      title: 'Products',
-                      href: productsIndex(),
-                      icon: Package,
-                  },
-                  {
-                      title: 'Parameters',
-                      href: parametersIndex(),
-                      icon: FlaskConical,
-                  },
-                  {
-                      title: 'Masters',
-                      href: mastersIndex(),
-                      icon: ListTree,
-                  },
-              ]
-            : []),
+        {
+            label: 'Master Data',
+            items: canManageTemplates
+                ? [
+                      {
+                          title: 'Products',
+                          href: productsIndex(),
+                          icon: Package,
+                      },
+                      {
+                          title: 'Parameters',
+                          href: parametersIndex(),
+                          icon: FlaskConical,
+                      },
+                      {
+                          title: 'Masters',
+                          href: mastersIndex(),
+                          icon: ListTree,
+                      },
+                  ]
+                : [],
+        },
+        {
+            label: 'User Management',
+            items: [
+                ...(isAdmin
+                    ? [
+                          {
+                              title: 'Users',
+                              href: usersIndex(),
+                              icon: Users,
+                          },
+                      ]
+                    : []),
+                ...(isSuperAdmin
+                    ? [
+                          {
+                              title: 'Access Rights',
+                              href: accessRightsIndex(),
+                              icon: KeyRound,
+                          },
+                      ]
+                    : []),
+            ],
+        },
+        {
+            label: 'System',
+            items: isAdmin
+                ? [
+                      {
+                          title: 'Notifications',
+                          href: notificationsIndex(),
+                          icon: Bell,
+                      },
+                      {
+                          title: 'Trash',
+                          href: trashIndex(),
+                          icon: Trash2,
+                      },
+                      {
+                          title: 'Activity Logs',
+                          href: activityLogsIndex(),
+                          icon: History,
+                      },
+                  ]
+                : [],
+        },
     ];
 
     return (
@@ -130,11 +134,10 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain groups={navGroups} />
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

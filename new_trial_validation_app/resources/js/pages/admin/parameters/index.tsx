@@ -1,16 +1,18 @@
-import { Form, Head, router } from '@inertiajs/react';
+import { Form, Head } from '@inertiajs/react';
+import { useState } from 'react';
 import ParameterController from '@/actions/App/Http/Controllers/Admin/ParameterController';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { PaginationFooter } from '@/components/pagination-footer';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
     Dialog,
-    DialogClose,
     DialogContent,
-    DialogDescription,
     DialogFooter,
+    DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,8 +23,17 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { index as parametersIndex } from '@/routes/admin/parameters';
+import type { Paginated } from '@/types';
 
 type Parameter = {
     id: number;
@@ -32,92 +43,49 @@ type Parameter = {
     sort_order: number;
 };
 
-type Paginated<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-};
-
 type PageProps = {
     parameters: Paginated<Parameter>;
-    editParameter: Parameter | null;
     productTypes: string[];
 };
 
-function DeleteParameterButton({ parameter }: { parameter: Parameter }) {
-    return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                    Delete
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogTitle>Delete this parameter?</DialogTitle>
-                <DialogDescription>
-                    {parameter.product_type} — {parameter.parameter_name} will
-                    be removed from the template list. Data lama hasil trial
-                    tidak ikut terhapus.
-                </DialogDescription>
-                <DialogFooter className="gap-2">
-                    <DialogClose asChild>
-                        <Button variant="secondary">Cancel</Button>
-                    </DialogClose>
-                    <Form
-                        {...ParameterController.destroy.form(parameter.id)}
-                        options={{ preserveScroll: true }}
-                    >
-                        {({ processing }) => (
-                            <Button
-                                type="submit"
-                                variant="destructive"
-                                disabled={processing}
-                            >
-                                Delete
-                            </Button>
-                        )}
-                    </Form>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-export default function AdminParametersIndex({
-    parameters,
-    editParameter,
+function ParameterFormDialog({
+    open,
+    onOpenChange,
+    editingParameter,
     productTypes,
-}: PageProps) {
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    editingParameter: Parameter | null;
+    productTypes: string[];
+}) {
     return (
-        <>
-            <Head title="Parameters" />
-
-            <div className="space-y-6 p-4">
-                <Heading
-                    title="Parameter Template"
-                    description="Kelola parameter validasi berdasarkan product type."
-                />
-
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>
+                        {editingParameter ? 'Edit Parameter' : 'Add Parameter'}
+                    </DialogTitle>
+                </DialogHeader>
                 <Form
                     {...ParameterController.store.form()}
                     options={{ preserveScroll: true }}
+                    onSuccess={() => onOpenChange(false)}
                     resetOnSuccess={[
                         'product_type',
                         'parameter_name',
                         'specification',
                         'sort_order',
                     ]}
-                    className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4"
+                    className="grid gap-4"
                 >
                     {({ processing, errors }) => (
                         <>
-                            {editParameter && (
+                            {editingParameter && (
                                 <input
                                     type="hidden"
                                     name="id"
-                                    value={editParameter.id}
+                                    value={editingParameter.id}
                                 />
                             )}
 
@@ -128,7 +96,7 @@ export default function AdminParametersIndex({
                                 <Select
                                     name="product_type"
                                     defaultValue={
-                                        editParameter?.product_type ??
+                                        editingParameter?.product_type ??
                                         productTypes[0]
                                     }
                                 >
@@ -155,7 +123,7 @@ export default function AdminParametersIndex({
                                     name="parameter_name"
                                     required
                                     defaultValue={
-                                        editParameter?.parameter_name ?? ''
+                                        editingParameter?.parameter_name ?? ''
                                     }
                                 />
                                 <InputError message={errors.parameter_name} />
@@ -168,13 +136,13 @@ export default function AdminParametersIndex({
                                     name="sort_order"
                                     type="number"
                                     defaultValue={
-                                        editParameter?.sort_order ?? 0
+                                        editingParameter?.sort_order ?? 0
                                     }
                                 />
                                 <InputError message={errors.sort_order} />
                             </div>
 
-                            <div className="grid gap-2 sm:col-span-2 lg:col-span-4">
+                            <div className="grid gap-2">
                                 <Label htmlFor="specification">
                                     Specification
                                 </Label>
@@ -182,136 +150,148 @@ export default function AdminParametersIndex({
                                     id="specification"
                                     name="specification"
                                     defaultValue={
-                                        editParameter?.specification ?? ''
+                                        editingParameter?.specification ?? ''
                                     }
                                 />
                                 <InputError message={errors.specification} />
                             </div>
 
-                            <div className="flex items-end gap-2">
+                            <DialogFooter>
                                 <Button type="submit" disabled={processing}>
-                                    {editParameter
-                                        ? 'Update Parameter'
+                                    {editingParameter
+                                        ? 'Save Changes'
                                         : 'Add Parameter'}
                                 </Button>
-                                {editParameter && (
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        onClick={() =>
-                                            router.get(parametersIndex().url)
-                                        }
-                                    >
-                                        Cancel
-                                    </Button>
-                                )}
-                            </div>
+                            </DialogFooter>
                         </>
                     )}
                 </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
-                <div className="space-y-4 rounded-lg border p-4">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b text-left">
-                                    <th className="p-2">Product Type</th>
-                                    <th className="p-2">Parameter</th>
-                                    <th className="p-2">Specification</th>
-                                    <th className="p-2">Sort</th>
-                                    <th className="p-2">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+export default function AdminParametersIndex({
+    parameters,
+    productTypes,
+}: PageProps) {
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [editingParameter, setEditingParameter] = useState<Parameter | null>(
+        null,
+    );
+
+    function openCreate() {
+        setEditingParameter(null);
+        setDialogOpen(true);
+    }
+
+    function openEdit(parameter: Parameter) {
+        setEditingParameter(parameter);
+        setDialogOpen(true);
+    }
+
+    return (
+        <>
+            <Head title="Parameters" />
+
+            <div className="space-y-6 p-4">
+                <Heading
+                    title="Parameter Template"
+                    description="Kelola parameter validasi berdasarkan product type."
+                />
+
+                <ParameterFormDialog
+                    open={dialogOpen}
+                    onOpenChange={setDialogOpen}
+                    editingParameter={editingParameter}
+                    productTypes={productTypes}
+                />
+
+                <Card>
+                    <CardHeader className="flex-row items-center justify-end">
+                        <Button type="button" onClick={openCreate}>
+                            Add Parameter
+                        </Button>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Product Type</TableHead>
+                                    <TableHead>Parameter</TableHead>
+                                    <TableHead>Specification</TableHead>
+                                    <TableHead>Sort</TableHead>
+                                    <TableHead>Action</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {parameters.data.map((parameter) => (
-                                    <tr key={parameter.id} className="border-b">
-                                        <td className="p-2">
+                                    <TableRow key={parameter.id}>
+                                        <TableCell>
                                             {parameter.product_type}
-                                        </td>
-                                        <td className="p-2">
+                                        </TableCell>
+                                        <TableCell>
                                             {parameter.parameter_name}
-                                        </td>
-                                        <td className="p-2 whitespace-pre-line">
+                                        </TableCell>
+                                        <TableCell className="whitespace-pre-line">
                                             {parameter.specification}
-                                        </td>
-                                        <td className="p-2">
+                                        </TableCell>
+                                        <TableCell>
                                             {parameter.sort_order}
-                                        </td>
-                                        <td className="p-2">
+                                        </TableCell>
+                                        <TableCell>
                                             <div className="flex gap-2">
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
                                                     onClick={() =>
-                                                        router.get(
-                                                            parametersIndex()
-                                                                .url,
-                                                            {
-                                                                edit: parameter.id,
-                                                            },
-                                                        )
+                                                        openEdit(parameter)
                                                     }
                                                 >
                                                     Edit
                                                 </Button>
-                                                <DeleteParameterButton
-                                                    parameter={parameter}
+                                                <ConfirmDialog
+                                                    trigger={
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="sm"
+                                                        >
+                                                            Delete
+                                                        </Button>
+                                                    }
+                                                    title="Delete this parameter?"
+                                                    description={`${parameter.product_type} — ${parameter.parameter_name} will be removed from the template list. Data lama hasil trial tidak ikut terhapus.`}
+                                                    confirmLabel="Delete"
+                                                    formProps={ParameterController.destroy.form(
+                                                        parameter.id,
+                                                    )}
                                                 />
                                             </div>
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
                                 {parameters.data.length === 0 && (
-                                    <tr>
-                                        <td
+                                    <TableRow>
+                                        <TableCell
                                             colSpan={5}
                                             className="p-4 text-center text-muted-foreground"
                                         >
                                             Belum ada parameter aktif.
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 )}
-                            </tbody>
-                        </table>
-                    </div>
+                            </TableBody>
+                        </Table>
 
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>
-                            Page {parameters.current_page} of{' '}
-                            {parameters.last_page} ({parameters.total}{' '}
-                            parameters)
-                        </span>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={parameters.current_page <= 1}
-                                onClick={() =>
-                                    router.get(parametersIndex().url, {
-                                        page: parameters.current_page - 1,
-                                    })
-                                }
-                            >
-                                Previous
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={
-                                    parameters.current_page >=
-                                    parameters.last_page
-                                }
-                                onClick={() =>
-                                    router.get(parametersIndex().url, {
-                                        page: parameters.current_page + 1,
-                                    })
-                                }
-                            >
-                                Next
-                            </Button>
-                        </div>
-                    </div>
-                </div>
+                        <PaginationFooter
+                            url={parametersIndex().url}
+                            currentPage={parameters.current_page}
+                            lastPage={parameters.last_page}
+                            total={parameters.total}
+                            itemLabel="parameters"
+                        />
+                    </CardContent>
+                </Card>
             </div>
         </>
     );

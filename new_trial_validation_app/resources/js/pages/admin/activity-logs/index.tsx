@@ -1,9 +1,12 @@
-import { Form, Head, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { Fragment, useState } from 'react';
 import ActivityLogController from '@/actions/App/Http/Controllers/Admin/ActivityLogController';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
+import { PaginationFooter } from '@/components/pagination-footer';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
@@ -16,7 +19,16 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
+import type { Paginated } from '@/types';
 
 type ActivityLogItem = {
     id: number;
@@ -30,14 +42,6 @@ type ActivityLogItem = {
     old_data: string | null;
     new_data: string | null;
     ip_address: string | null;
-};
-
-type Paginated<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
 };
 
 type Filters = {
@@ -54,44 +58,6 @@ type PageProps = {
     logs: Paginated<ActivityLogItem>;
     filters: Filters;
 };
-
-function DeleteLogButton({ log }: { log: ActivityLogItem }) {
-    return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                    Delete
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogTitle>Delete this activity log permanently?</DialogTitle>
-                <DialogDescription>
-                    This entry will be permanently removed. This cannot be
-                    undone.
-                </DialogDescription>
-                <DialogFooter className="gap-2">
-                    <DialogClose asChild>
-                        <Button variant="secondary">Cancel</Button>
-                    </DialogClose>
-                    <Form
-                        {...ActivityLogController.destroy.form(log.id)}
-                        options={{ preserveScroll: true }}
-                    >
-                        {({ processing }) => (
-                            <Button
-                                type="submit"
-                                variant="destructive"
-                                disabled={processing}
-                            >
-                                Delete
-                            </Button>
-                        )}
-                    </Form>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
 
 export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
     const [form, setForm] = useState<Filters>(filters);
@@ -121,18 +87,6 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
     }
 
     function deleteSelected() {
-        if (selected.length === 0) {
-            return;
-        }
-
-        if (
-            !confirm(
-                `Delete ${selected.length} selected activity log(s) permanently?`,
-            )
-        ) {
-            return;
-        }
-
         router.post(
             ActivityLogController.destroySelected().url,
             { log_ids: selected },
@@ -153,122 +107,171 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                     description="Riwayat action penting pada aplikasi."
                 />
 
-                <form
-                    onSubmit={submit}
-                    className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4"
-                >
-                    <div className="grid gap-2">
-                        <Label htmlFor="date_from">Date From</Label>
-                        <Input
-                            id="date_from"
-                            type="date"
-                            value={form.date_from}
-                            onChange={(e) =>
-                                setForm({
-                                    ...form,
-                                    date_from: e.target.value,
-                                })
-                            }
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="date_to">Date To</Label>
-                        <Input
-                            id="date_to"
-                            type="date"
-                            value={form.date_to}
-                            onChange={(e) =>
-                                setForm({ ...form, date_to: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="user">User</Label>
-                        <Input
-                            id="user"
-                            placeholder="User"
-                            value={form.user}
-                            onChange={(e) =>
-                                setForm({ ...form, user: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="role">Role</Label>
-                        <Input
-                            id="role"
-                            placeholder="Role"
-                            value={form.role}
-                            onChange={(e) =>
-                                setForm({ ...form, role: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="module">Module</Label>
-                        <Input
-                            id="module"
-                            placeholder="Module"
-                            value={form.module}
-                            onChange={(e) =>
-                                setForm({ ...form, module: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="action">Action</Label>
-                        <Input
-                            id="action"
-                            placeholder="Action"
-                            value={form.action}
-                            onChange={(e) =>
-                                setForm({ ...form, action: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="grid gap-2 sm:col-span-2">
-                        <Label htmlFor="q">Search</Label>
-                        <Input
-                            id="q"
-                            placeholder="Keyword"
-                            value={form.q}
-                            onChange={(e) =>
-                                setForm({ ...form, q: e.target.value })
-                            }
-                        />
-                    </div>
-                    <div className="flex items-end gap-2 lg:col-span-4">
-                        <Button type="submit">Filter</Button>
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={reset}
+                <Card>
+                    <CardContent>
+                        <form
+                            onSubmit={submit}
+                            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
                         >
-                            Reset
-                        </Button>
-                    </div>
-                </form>
+                            <div className="grid gap-2">
+                                <Label htmlFor="date_from">Date From</Label>
+                                <Input
+                                    id="date_from"
+                                    type="date"
+                                    value={form.date_from}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            date_from: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="date_to">Date To</Label>
+                                <Input
+                                    id="date_to"
+                                    type="date"
+                                    value={form.date_to}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            date_to: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="user">User</Label>
+                                <Input
+                                    id="user"
+                                    placeholder="User"
+                                    value={form.user}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            user: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="role">Role</Label>
+                                <Input
+                                    id="role"
+                                    placeholder="Role"
+                                    value={form.role}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            role: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="module">Module</Label>
+                                <Input
+                                    id="module"
+                                    placeholder="Module"
+                                    value={form.module}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            module: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="action">Action</Label>
+                                <Input
+                                    id="action"
+                                    placeholder="Action"
+                                    value={form.action}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            action: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-2 sm:col-span-2">
+                                <Label htmlFor="q">Search</Label>
+                                <Input
+                                    id="q"
+                                    placeholder="Keyword"
+                                    value={form.q}
+                                    onChange={(e) =>
+                                        setForm({ ...form, q: e.target.value })
+                                    }
+                                />
+                            </div>
+                            <div className="flex items-end gap-2 lg:col-span-4">
+                                <Button type="submit">Filter</Button>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={reset}
+                                >
+                                    Reset
+                                </Button>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
 
-                <div className="space-y-4 rounded-lg border p-4">
-                    <div className="flex items-center justify-between">
+                <Card>
+                    <CardHeader className="flex-row items-center justify-between">
                         <h2 className="text-sm font-medium">
                             Activity Log Data
                         </h2>
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            disabled={selected.length === 0}
-                            onClick={deleteSelected}
-                        >
-                            Delete Selected
-                        </Button>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b text-left">
-                                    <th className="p-2">
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    disabled={selected.length === 0}
+                                >
+                                    Delete Selected
+                                    {selected.length > 0
+                                        ? ` (${selected.length})`
+                                        : ''}
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogTitle>
+                                    Delete {selected.length} activity log(s)
+                                    permanently?
+                                </DialogTitle>
+                                <DialogDescription>
+                                    These entries will be permanently removed.
+                                    This cannot be undone.
+                                </DialogDescription>
+                                <DialogFooter className="gap-2">
+                                    <DialogClose asChild>
+                                        <Button variant="secondary">
+                                            Cancel
+                                        </Button>
+                                    </DialogClose>
+                                    <DialogClose asChild>
+                                        <Button
+                                            variant="destructive"
+                                            onClick={deleteSelected}
+                                        >
+                                            Delete
+                                        </Button>
+                                    </DialogClose>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>
                                         <Checkbox
                                             aria-label="Select all activity logs"
                                             checked={
@@ -282,22 +285,22 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                                 )
                                             }
                                         />
-                                    </th>
-                                    <th className="p-2">Date/Time</th>
-                                    <th className="p-2">User</th>
-                                    <th className="p-2">Role</th>
-                                    <th className="p-2">Action</th>
-                                    <th className="p-2">Module</th>
-                                    <th className="p-2">Record</th>
-                                    <th className="p-2">IP Address</th>
-                                    <th className="p-2">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                                    </TableHead>
+                                    <TableHead>Date/Time</TableHead>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Role</TableHead>
+                                    <TableHead>Action</TableHead>
+                                    <TableHead>Module</TableHead>
+                                    <TableHead>Record</TableHead>
+                                    <TableHead>IP Address</TableHead>
+                                    <TableHead>Action</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {logs.data.map((log) => (
                                     <Fragment key={log.id}>
-                                        <tr className="border-b align-top">
-                                            <td className="p-2">
+                                        <TableRow>
+                                            <TableCell>
                                                 <Checkbox
                                                     aria-label="Select activity log"
                                                     checked={selected.includes(
@@ -312,31 +315,27 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                                         )
                                                     }
                                                 />
-                                            </td>
-                                            <td className="p-2">
+                                            </TableCell>
+                                            <TableCell>
                                                 {log.created_at}
-                                            </td>
-                                            <td className="p-2">
+                                            </TableCell>
+                                            <TableCell>
                                                 {log.user_name ?? '-'}
-                                            </td>
-                                            <td className="p-2">
+                                            </TableCell>
+                                            <TableCell>
                                                 {log.user_role ?? '-'}
-                                            </td>
-                                            <td className="p-2">
-                                                {log.action}
-                                            </td>
-                                            <td className="p-2">
-                                                {log.module}
-                                            </td>
-                                            <td className="p-2">
+                                            </TableCell>
+                                            <TableCell>{log.action}</TableCell>
+                                            <TableCell>{log.module}</TableCell>
+                                            <TableCell>
                                                 {log.record_label ??
                                                     log.record_id ??
                                                     '-'}
-                                            </td>
-                                            <td className="p-2">
+                                            </TableCell>
+                                            <TableCell>
                                                 {log.ip_address ?? '-'}
-                                            </td>
-                                            <td className="p-2">
+                                            </TableCell>
+                                            <TableCell>
                                                 <div className="flex gap-2">
                                                     <Button
                                                         type="button"
@@ -353,15 +352,31 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                                     >
                                                         Detail
                                                     </Button>
-                                                    <DeleteLogButton
-                                                        log={log}
+                                                    <ConfirmDialog
+                                                        trigger={
+                                                            <Button
+                                                                variant="destructive"
+                                                                size="sm"
+                                                            >
+                                                                Delete
+                                                            </Button>
+                                                        }
+                                                        title="Delete this activity log permanently?"
+                                                        description="This entry will be permanently removed. This cannot be undone."
+                                                        confirmLabel="Delete"
+                                                        formProps={ActivityLogController.destroy.form(
+                                                            log.id,
+                                                        )}
                                                     />
                                                 </div>
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                         {expanded === log.id && (
-                                            <tr className="border-b bg-muted/30">
-                                                <td colSpan={9} className="p-4">
+                                            <TableRow className="bg-muted/30">
+                                                <TableCell
+                                                    colSpan={9}
+                                                    className="p-4 whitespace-normal"
+                                                >
                                                     <div className="grid gap-4 sm:grid-cols-2">
                                                         <div>
                                                             <h3 className="mb-1 text-xs font-medium text-muted-foreground">
@@ -382,60 +397,34 @@ export default function AdminActivityLogsIndex({ logs, filters }: PageProps) {
                                                             </pre>
                                                         </div>
                                                     </div>
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         )}
                                     </Fragment>
                                 ))}
                                 {logs.data.length === 0 && (
-                                    <tr>
-                                        <td
+                                    <TableRow>
+                                        <TableCell
                                             colSpan={9}
                                             className="p-4 text-center text-muted-foreground"
                                         >
                                             Belum ada activity log.
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 )}
-                            </tbody>
-                        </table>
-                    </div>
+                            </TableBody>
+                        </Table>
 
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>
-                            Page {logs.current_page} of {logs.last_page} (
-                            {logs.total} logs)
-                        </span>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={logs.current_page <= 1}
-                                onClick={() =>
-                                    router.get(activityLogsIndex().url, {
-                                        ...filters,
-                                        page: logs.current_page - 1,
-                                    })
-                                }
-                            >
-                                Previous
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={logs.current_page >= logs.last_page}
-                                onClick={() =>
-                                    router.get(activityLogsIndex().url, {
-                                        ...filters,
-                                        page: logs.current_page + 1,
-                                    })
-                                }
-                            >
-                                Next
-                            </Button>
-                        </div>
-                    </div>
-                </div>
+                        <PaginationFooter
+                            url={activityLogsIndex().url}
+                            query={filters}
+                            currentPage={logs.current_page}
+                            lastPage={logs.last_page}
+                            total={logs.total}
+                            itemLabel="logs"
+                        />
+                    </CardContent>
+                </Card>
             </div>
         </>
     );
