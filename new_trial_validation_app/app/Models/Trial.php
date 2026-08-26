@@ -172,4 +172,79 @@ class Trial extends Model
 
         return $query;
     }
+
+    /**
+     * List-page search filters — port of the filter tail of scoped_trials_parts()
+     * (app/bootstrap.php:668-701). Not authorization (see scopeVisibleTo above),
+     * just the q/product_type/status/date_from/date_to fields the dashboard and
+     * trials-list pages actually expose.
+     *
+     * @param  Builder<Trial>  $query
+     * @return Builder<Trial>
+     */
+    public function scopeSearch(Builder $query, array $filters): Builder
+    {
+        $q = trim($filters['q'] ?? '');
+        if ($q !== '') {
+            $like = '%'.$q.'%';
+            $query->where(function (Builder $sub) use ($like) {
+                $sub->where('trial_code', 'like', $like)
+                    ->orWhere('product_name', 'like', $like)
+                    ->orWhere('finish_good_code', 'like', $like)
+                    ->orWhere('product_type', 'like', $like)
+                    ->orWhere('validation_category', 'like', $like)
+                    ->orWhere('validation_scope', 'like', $like)
+                    ->orWhere('machine_used', 'like', $like);
+            });
+        }
+
+        $productType = trim($filters['product_type'] ?? '');
+        if ($productType !== '') {
+            $query->where('product_type', $productType);
+        }
+
+        $status = trim($filters['status'] ?? '');
+        if ($status !== '') {
+            $query->where('progress_status', $status);
+        }
+
+        $dateFrom = trim($filters['date_from'] ?? '');
+        if ($dateFrom !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom) === 1) {
+            $query->where('validation_date', '>=', $dateFrom);
+        }
+
+        $dateTo = trim($filters['date_to'] ?? '');
+        if ($dateTo !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo) === 1) {
+            $query->where('validation_date', '<=', $dateTo);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Port of trial_summary_counts() (app/bootstrap.php:722-734). Legacy loads
+     * every visible trial into PHP and buckets it in a loop; this runs 7 small
+     * COUNT queries instead. Deliberately calls visibleTo($user) with NO
+     * $statusGroup for every bucket, matching legacy's scoped_trials_query()
+     * call with no args — the 'ready' bucket must NOT get the 'waiting' group's
+     * approver-only narrowing, which only the dedicated waiting-approval list
+     * page applies.
+     *
+     * @return array{total: int, draft: int, in_review: int, ready: int, approved: int, need_revision: int, rejected: int}
+     */
+    public static function summaryCounts(User $user): array
+    {
+        $base = fn () => static::query()->visibleTo($user);
+
+        return [
+            'total' => $base()->count('trials_header.id'),
+            'draft' => $base()->where('progress_status', 'Draft')->count('trials_header.id'),
+            'in_review' => $base()->where('progress_status', 'In Review')->count('trials_header.id'),
+            'ready' => $base()->where('progress_status', 'Ready for Approval')->count('trials_header.id'),
+            'approved' => $base()->where('progress_status', 'Approved')->count('trials_header.id'),
+            'need_revision' => $base()->where('progress_status', 'Need Revision')->count('trials_header.id'),
+            'rejected' => $base()->where(fn (Builder $q) => $q->where('progress_status', 'Rejected')
+                ->orWhere('final_decision', 'Rejected'))->count('trials_header.id'),
+        ];
+    }
 }
