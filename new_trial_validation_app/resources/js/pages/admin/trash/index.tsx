@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { trialStatusBadgeClassName } from '@/lib/trial-status';
 import { index as trashIndex } from '@/routes/admin/trash';
 
 type TrialItem = {
@@ -40,30 +41,6 @@ type PageProps = {
     trials: Paginated<TrialItem>;
     filters: Filters;
 };
-
-function statusBadgeClassName(status: string, finalDecision: string | null) {
-    if (status === 'Draft') {
-        return 'bg-muted text-muted-foreground';
-    }
-
-    if (status === 'In Review') {
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200';
-    }
-
-    if (status === 'Ready for Approval' || status === 'Need Revision') {
-        return 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200';
-    }
-
-    if (status === 'Approved') {
-        return 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200';
-    }
-
-    if (status === 'Rejected' || finalDecision === 'Rejected') {
-        return 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200';
-    }
-
-    return 'bg-muted text-muted-foreground';
-}
 
 function RestoreTrialButton({ trial }: { trial: TrialItem }) {
     return (
@@ -223,7 +200,7 @@ export default function AdminTrashIndex({ trials, filters }: PageProps) {
                                         <td className="p-2">
                                             <Badge
                                                 variant="outline"
-                                                className={statusBadgeClassName(
+                                                className={trialStatusBadgeClassName(
                                                     trial.progress_status,
                                                     trial.final_decision,
                                                 )}

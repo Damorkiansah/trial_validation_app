@@ -7,119 +7,51 @@ import type { Paginated, TrialRow } from '@/components/trials-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TRIAL_STATUSES } from '@/lib/trial-status';
 import { dashboard } from '@/routes';
 import { index as trialsIndex } from '@/routes/trials';
-
-type Summary = {
-    total: number;
-    draft: number;
-    in_review: number;
-    ready: number;
-    approved: number;
-    need_revision: number;
-    rejected: number;
-};
 
 type Filters = {
     q: string;
     product_type: string;
     date_from: string;
     date_to: string;
-    status: string;
 };
 
 type PageProps = {
     trials: Paginated<TrialRow>;
     filters: Filters;
     productTypes: string[];
-    summary: Summary;
+    pageTitle: string;
+    pageSubtitle: string;
+    group: string;
 };
 
-const summaryCards: {
-    key: keyof Summary;
-    label: string;
-    href: () => string;
-}[] = [
-    { key: 'total', label: 'Total Trials', href: () => dashboard().url },
-    {
-        key: 'draft',
-        label: 'Draft',
-        href: () => dashboard({ query: { status: 'Draft' } }).url,
-    },
-    {
-        key: 'in_review',
-        label: 'In Review',
-        href: () => trialsIndex('in-review').url,
-    },
-    {
-        key: 'ready',
-        label: 'Ready for Approval',
-        href: () => trialsIndex('waiting-approval').url,
-    },
-    {
-        key: 'approved',
-        label: 'Approved',
-        href: () => trialsIndex('approved').url,
-    },
-    {
-        key: 'need_revision',
-        label: 'Need Revision',
-        href: () => trialsIndex('need-revision').url,
-    },
-    {
-        key: 'rejected',
-        label: 'Rejected',
-        href: () => trialsIndex('rejected').url,
-    },
-];
-
-export default function Dashboard({
+export default function TrialsIndex({
     trials,
     filters,
     productTypes,
-    summary,
+    pageTitle,
+    pageSubtitle,
+    group,
 }: PageProps) {
     const [form, setForm] = useState<Filters>(filters);
+    const url = trialsIndex(group).url;
 
     function submit(e: FormEvent) {
         e.preventDefault();
-        router.get(dashboard().url, form, {
-            preserveState: true,
-            replace: true,
-        });
+        router.get(url, form, { preserveState: true, replace: true });
     }
 
     function reset() {
-        router.get(dashboard().url);
+        router.get(url);
     }
 
     return (
         <>
-            <Head title="Dashboard" />
+            <Head title={pageTitle} />
 
             <div className="space-y-6 p-4">
-                <Heading
-                    title="Trial Dashboard"
-                    description="Kelola dan pantau proses trial validation."
-                />
-
-                <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-                    {summaryCards.map((card) => (
-                        <a
-                            key={card.key}
-                            href={card.href()}
-                            className="rounded-lg border p-4 transition-colors hover:bg-muted"
-                        >
-                            <span className="text-sm text-muted-foreground">
-                                {card.label}
-                            </span>
-                            <div className="text-2xl font-semibold">
-                                {summary[card.key]}
-                            </div>
-                        </a>
-                    ))}
-                </section>
+                <Heading title={pageTitle} description={pageSubtitle} />
 
                 <form
                     onSubmit={submit}
@@ -129,30 +61,12 @@ export default function Dashboard({
                         <Label htmlFor="q">Search</Label>
                         <Input
                             id="q"
-                            placeholder="Trial, product, FG code, category, scope, machine"
+                            placeholder="Trial, product, FG code, scope, machine"
                             value={form.q}
                             onChange={(e) =>
                                 setForm({ ...form, q: e.target.value })
                             }
                         />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="status">Status</Label>
-                        <select
-                            id="status"
-                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs dark:bg-input/30"
-                            value={form.status}
-                            onChange={(e) =>
-                                setForm({ ...form, status: e.target.value })
-                            }
-                        >
-                            <option value="">Semua status</option>
-                            {TRIAL_STATUSES.map((status) => (
-                                <option key={status} value={status}>
-                                    {status}
-                                </option>
-                            ))}
-                        </select>
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="product_type">Product Type</Label>
@@ -214,20 +128,18 @@ export default function Dashboard({
 
                 <TrialsTable
                     trials={trials}
-                    url={dashboard().url}
+                    url={url}
                     query={filters}
-                    emptyMessage="Tidak ada trial untuk filter ini."
+                    emptyMessage="Tidak ada trial pada halaman ini."
                 />
             </div>
         </>
     );
 }
 
-Dashboard.layout = {
+TrialsIndex.layout = {
     breadcrumbs: [
-        {
-            title: 'Dashboard',
-            href: dashboard(),
-        },
+        { title: 'Dashboard', href: dashboard() },
+        { title: 'Trials', href: '#' },
     ],
 };

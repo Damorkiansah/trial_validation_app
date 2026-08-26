@@ -180,6 +180,7 @@ class Trial extends Model
      * trials-list pages actually expose.
      *
      * @param  Builder<Trial>  $query
+     * @param  array<string, string>  $filters
      * @return Builder<Trial>
      */
     public function scopeSearch(Builder $query, array $filters): Builder
