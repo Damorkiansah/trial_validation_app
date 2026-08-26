@@ -80,7 +80,7 @@ export function MultiSelect({
                                 'text-muted-foreground',
                         )}
                     >
-                        <span className="truncate">
+                        <span className="min-w-0 flex-1 truncate text-left">
                             {selectedOptions.length > 0
                                 ? `${selectedOptions.length} dipilih`
                                 : placeholder}

@@ -5,6 +5,7 @@ import { Combobox } from '@/components/combobox';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { MultiSelect } from '@/components/multi-select';
+import { TrialWizardSteps } from '@/components/trial-wizard-steps';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +31,7 @@ type Product = {
 type TrialData = {
     id: number;
     trial_code: string;
+    current_step: string | null;
     product_id: number | null;
     product_type: string;
     validation_date: string;
@@ -117,6 +119,8 @@ export default function TrialForm({
                         </Badge>
                     )}
                 </div>
+
+                <TrialWizardSteps currentStep={1} trial={trial} />
 
                 <Form
                     {...formProps}

@@ -1,14 +1,21 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    AlertTriangle,
     Bell,
+    CheckCircle2,
+    Clock,
+    FileEdit,
+    FilePlus2,
     FlaskConical,
     History,
     KeyRound,
     LayoutGrid,
     ListTree,
     Package,
+    Search,
     Trash2,
     Users,
+    XCircle,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
@@ -31,12 +38,14 @@ import { index as parametersIndex } from '@/routes/admin/parameters';
 import { index as productsIndex } from '@/routes/admin/products';
 import { index as trashIndex } from '@/routes/admin/trash';
 import { index as usersIndex } from '@/routes/admin/users';
+import { create as createTrial, index as trialsIndex } from '@/routes/trials';
 import type { Auth, NavGroup } from '@/types';
 
 export function AppSidebar() {
     const { auth } = usePage<{ auth: Auth }>().props;
     const isSuperAdmin = auth.user.role === 'Super Admin';
     const isAdmin = auth.user.role === 'Admin' || isSuperAdmin;
+    const isStaff = auth.user.role === 'Staff' || isAdmin;
     const canManageTemplates = isAdmin || auth.user.role === 'Staff';
 
     const navGroups: NavGroup[] = [
@@ -47,6 +56,50 @@ export function AppSidebar() {
                     title: 'Dashboard',
                     href: dashboard(),
                     icon: LayoutGrid,
+                },
+            ],
+        },
+        {
+            label: 'Trials',
+            items: [
+                ...(isStaff
+                    ? [
+                          {
+                              title: 'New Trial',
+                              href: createTrial(),
+                              icon: FilePlus2,
+                          },
+                      ]
+                    : []),
+                {
+                    title: 'Draft',
+                    href: trialsIndex('draft'),
+                    icon: FileEdit,
+                },
+                {
+                    title: 'In Review',
+                    href: trialsIndex('in-review'),
+                    icon: Search,
+                },
+                {
+                    title: 'Ready for Approval',
+                    href: trialsIndex('waiting-approval'),
+                    icon: Clock,
+                },
+                {
+                    title: 'Approved',
+                    href: trialsIndex('approved'),
+                    icon: CheckCircle2,
+                },
+                {
+                    title: 'Need Revision',
+                    href: trialsIndex('need-revision'),
+                    icon: AlertTriangle,
+                },
+                {
+                    title: 'Rejected',
+                    href: trialsIndex('rejected'),
+                    icon: XCircle,
                 },
             ],
         },
