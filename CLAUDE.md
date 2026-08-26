@@ -71,9 +71,9 @@ Target: Laravel + Inertia.js (React) on a new Ubuntu 26 server, migrated module-
 ### Fase 2 — Dashboard & Trials List (read-only)
 - [x] Dashboard — **done 2026-08-26.** See `new_trial_validation_app/CLAUDE.md` Fase 2 section for full detail.
 - [x] Trials list (read-only) — **done 2026-08-26**, same session as Dashboard above; both share one `TrialsTable` component.
-- [ ] Decide print/PDF report approach in the new stack (needed before Fase 3 reports)
+- [x] Decide print/PDF report approach in the new stack — **decided 2026-08-26.** Legacy has no PDF library at all: every report (`report.php`, `report_approved.php`, `report_rejected.php`, `report_trial_summary.php`, `report_department_review.php`, `report_audit_print_log.php`) is a plain view styled with `@media print` CSS and printed via the browser's native `window.print()`, plus a `POST /trials/{id}/print-log` call that writes a `report_printed` audit-log entry before the print dialog opens. For the new stack: **`spatie/browsershot`** (headless Chrome/Puppeteer), generating a real server-side PDF file — chosen over `barryvdh/laravel-dompdf` because the legacy report layouts lean on CSS grid/flexbox (`report-info-grid`, `attachment-grid-print`) that dompdf's CSS engine renders poorly, whereas Browsershot can reuse the same HTML/CSS as the print views almost as-is for close-to-pixel-accurate output. Node.js is already a hard dependency of this project (Vite/npm build), so Browsershot's Node+Chromium requirement isn't new infrastructure, just an additional package on the target Ubuntu 26 server. Not yet implemented — this only records the choice; the actual Fase 3 report controllers/views and the `report_printed` audit-log port still need to be built when Fase 3 reaches the Reports sub-item.
 
-**▶️ Start next session here:** finish Fase 2 by deciding the print/PDF report approach (see item above), then move to Fase 3 (Inti workflow trial).
+This closes out Fase 2 (Dashboard, Trials list, and the print/PDF decision). **▶️ Start next session here:** Fase 3 (Inti workflow trial) — see the sub-items below; `MIGRATION_PLAN.md` §8 has more detail once that fase is scoped out further.
 
 ### Fase 3 — Inti workflow trial (paling besar & berisiko, dikerjakan paling akhir)
 - [ ] Sub-tahapan dirinci saat fase ini dimulai (belum direncanakan detail — lihat MIGRATION_PLAN.md §8)
