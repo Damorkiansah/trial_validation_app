@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    Bell,
     BookOpen,
     FlaskConical,
     FolderGit2,
@@ -25,6 +26,7 @@ import {
 import { dashboard } from '@/routes';
 import { index as accessRightsIndex } from '@/routes/admin/access-rights';
 import { index as mastersIndex } from '@/routes/admin/masters';
+import { index as notificationsIndex } from '@/routes/admin/notifications';
 import { index as parametersIndex } from '@/routes/admin/parameters';
 import { index as productsIndex } from '@/routes/admin/products';
 import { index as usersIndex } from '@/routes/admin/users';
@@ -61,6 +63,11 @@ export function AppSidebar() {
                       title: 'Users',
                       href: usersIndex(),
                       icon: Users,
+                  },
+                  {
+                      title: 'Notifications',
+                      href: notificationsIndex(),
+                      icon: Bell,
                   },
               ]
             : []),
