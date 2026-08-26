@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -70,6 +71,31 @@ class Trial extends Model
     public function editPermissions(): HasMany
     {
         return $this->hasMany(TrialEditPermission::class, 'trial_id');
+    }
+
+    /**
+     * Named `deletedByUser` (not `deletedBy`) so JSON serialization keys it
+     * as `deleted_by_user` — Eloquent's toArray() otherwise collides a
+     * loaded relation's snake_case key with the raw `deleted_by` column
+     * (foreign key id) of the same name, and the relation would silently
+     * win, hiding the id from any consumer that still wants it.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function deletedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    /**
+     * Matches legacy admin_trash's `u_creator.email=h.created_by` join —
+     * `created_by` stores the creating user's email, not their id.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by', 'email');
     }
 
     public function currentReviewRound(): int

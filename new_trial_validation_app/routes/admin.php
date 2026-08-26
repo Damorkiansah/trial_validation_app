@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\MasterOptionController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\ParameterController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\TrashController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,4 +35,7 @@ Route::middleware(['auth'])->prefix('admin')->as('admin.')->group(function () {
 
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::delete('notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+
+    Route::get('trash', [TrashController::class, 'index'])->name('trash.index');
+    Route::post('trash/{trial}/restore', [TrashController::class, 'restore'])->name('trash.restore');
 });

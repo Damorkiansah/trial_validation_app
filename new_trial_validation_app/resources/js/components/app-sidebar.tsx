@@ -8,6 +8,7 @@ import {
     LayoutGrid,
     ListTree,
     Package,
+    Trash2,
     Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -29,6 +30,7 @@ import { index as mastersIndex } from '@/routes/admin/masters';
 import { index as notificationsIndex } from '@/routes/admin/notifications';
 import { index as parametersIndex } from '@/routes/admin/parameters';
 import { index as productsIndex } from '@/routes/admin/products';
+import { index as trashIndex } from '@/routes/admin/trash';
 import { index as usersIndex } from '@/routes/admin/users';
 import type { Auth, NavItem } from '@/types';
 
@@ -68,6 +70,11 @@ export function AppSidebar() {
                       title: 'Notifications',
                       href: notificationsIndex(),
                       icon: Bell,
+                  },
+                  {
+                      title: 'Trash',
+                      href: trashIndex(),
+                      icon: Trash2,
                   },
               ]
             : []),
