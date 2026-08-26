@@ -4,6 +4,7 @@ import {
     BookOpen,
     FlaskConical,
     FolderGit2,
+    History,
     KeyRound,
     LayoutGrid,
     ListTree,
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as accessRightsIndex } from '@/routes/admin/access-rights';
+import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
 import { index as mastersIndex } from '@/routes/admin/masters';
 import { index as notificationsIndex } from '@/routes/admin/notifications';
 import { index as parametersIndex } from '@/routes/admin/parameters';
@@ -75,6 +77,11 @@ export function AppSidebar() {
                       title: 'Trash',
                       href: trashIndex(),
                       icon: Trash2,
+                  },
+                  {
+                      title: 'Activity Logs',
+                      href: activityLogsIndex(),
+                      icon: History,
                   },
               ]
             : []),

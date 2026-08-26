@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AccessRightController;
+use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\MasterOptionController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\ParameterController;
@@ -38,4 +39,8 @@ Route::middleware(['auth'])->prefix('admin')->as('admin.')->group(function () {
 
     Route::get('trash', [TrashController::class, 'index'])->name('trash.index');
     Route::post('trash/{trial}/restore', [TrashController::class, 'restore'])->name('trash.restore');
+
+    Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
+    Route::post('activity-logs/delete-selected', [ActivityLogController::class, 'destroySelected'])->name('activity-logs.destroy-selected');
+    Route::delete('activity-logs/{activityLog}', [ActivityLogController::class, 'destroy'])->name('activity-logs.destroy');
 });
