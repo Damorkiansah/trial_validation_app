@@ -5,6 +5,7 @@ import {
     FolderGit2,
     KeyRound,
     LayoutGrid,
+    ListTree,
     Package,
     Users,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as accessRightsIndex } from '@/routes/admin/access-rights';
+import { index as mastersIndex } from '@/routes/admin/masters';
 import { index as parametersIndex } from '@/routes/admin/parameters';
 import { index as productsIndex } from '@/routes/admin/products';
 import { index as usersIndex } from '@/routes/admin/users';
@@ -82,6 +84,11 @@ export function AppSidebar() {
                       title: 'Parameters',
                       href: parametersIndex(),
                       icon: FlaskConical,
+                  },
+                  {
+                      title: 'Masters',
+                      href: mastersIndex(),
+                      icon: ListTree,
                   },
               ]
             : []),

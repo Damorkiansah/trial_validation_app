@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AccessRightController;
+use App\Http\Controllers\Admin\MasterOptionController;
 use App\Http\Controllers\Admin\ParameterController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\UserController;
@@ -18,6 +19,10 @@ Route::middleware(['auth'])->prefix('admin')->as('admin.')->group(function () {
     Route::get('parameters', [ParameterController::class, 'index'])->name('parameters.index');
     Route::post('parameters', [ParameterController::class, 'store'])->name('parameters.store');
     Route::delete('parameters/{parameter}', [ParameterController::class, 'destroy'])->name('parameters.destroy');
+
+    Route::get('masters', [MasterOptionController::class, 'index'])->name('masters.index');
+    Route::post('masters', [MasterOptionController::class, 'store'])->name('masters.store');
+    Route::delete('masters/{masterOption}', [MasterOptionController::class, 'destroy'])->name('masters.destroy');
 
     Route::get('access-rights', [AccessRightController::class, 'index'])->name('access-rights.index');
     Route::post('access-rights/users/{user}/role', [AccessRightController::class, 'updateRole'])->name('access-rights.users.role');
