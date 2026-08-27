@@ -85,6 +85,17 @@ class Trial extends Model
     }
 
     /**
+     * Read-only — see App\Models\TrialResult's doc comment. Writes go
+     * through DB::table('trials_results')->upsert().
+     *
+     * @return HasMany<TrialResult, $this>
+     */
+    public function results(): HasMany
+    {
+        return $this->hasMany(TrialResult::class, 'trial_id');
+    }
+
+    /**
      * Named `deletedByUser` (not `deletedBy`) so JSON serialization keys it
      * as `deleted_by_user` — Eloquent's toArray() otherwise collides a
      * loaded relation's snake_case key with the raw `deleted_by` column

@@ -89,7 +89,7 @@ class TrialController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Trial berhasil dibuat.']);
 
-        return to_route('trials.edit', $trial);
+        return to_route('trials.validation.edit', $trial);
     }
 
     public function edit(int $trial): Response
@@ -113,7 +113,7 @@ class TrialController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Trial berhasil diperbarui.']);
 
-        return to_route('trials.edit', $trial);
+        return to_route('trials.validation.edit', $trial);
     }
 
     public function index(Request $request, string $group): Response

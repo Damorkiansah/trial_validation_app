@@ -73,7 +73,7 @@ test('staff can create a trial', function () {
     $response = $this->actingAs($staff)->post(route('trials.store'), validTrialPayload($product));
 
     $trial = Trial::first();
-    $response->assertRedirect(route('trials.edit', $trial));
+    $response->assertRedirect(route('trials.validation.edit', $trial));
 
     expect($trial->progress_status)->toBe('Draft');
     expect($trial->current_step)->toBe('Validation');
@@ -171,7 +171,7 @@ test('a draft trial is editable by its owner', function () {
         'batch_number' => 'B-UPDATED',
     ]);
 
-    $response->assertRedirect(route('trials.edit', $trial));
+    $response->assertRedirect(route('trials.validation.edit', $trial));
     expect($trial->fresh()->batch_number)->toBe('B-UPDATED');
     expect($trial->fresh()->progress_status)->toBe('Draft');
     expect($trial->fresh()->current_step)->toBe('Validation');
