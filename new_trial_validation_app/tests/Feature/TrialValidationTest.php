@@ -71,7 +71,7 @@ test('saving validation results persists rows and advances current_step', functi
         ],
     ]);
 
-    $response->assertRedirect(route('trials.validation.edit', $trial));
+    $response->assertRedirect(route('trials.weighing.edit', ['trial' => $trial, 'section' => 'Packaging']));
 
     $rows = DB::table('trials_results')->where('trial_id', $trial->id)->get()->keyBy('parameter_id');
     expect($rows)->toHaveCount(3);
@@ -152,7 +152,7 @@ test('re-saving validation results updates existing rows in place', function () 
         ],
     ]);
 
-    $response->assertRedirect(route('trials.validation.edit', $trial));
+    $response->assertRedirect(route('trials.weighing.edit', ['trial' => $trial, 'section' => 'Packaging']));
     $rows = DB::table('trials_results')->where('trial_id', $trial->id)->get();
     expect($rows)->toHaveCount(1);
     expect($rows->first()->decision)->toBe('NOT OK');

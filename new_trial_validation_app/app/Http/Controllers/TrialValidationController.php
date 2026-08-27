@@ -52,6 +52,6 @@ class TrialValidationController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Validation berhasil disimpan.']);
 
-        return to_route('trials.validation.edit', $trial);
+        return to_route('trials.weighing.edit', ['trial' => $trial, 'section' => 'Packaging']);
     }
 }

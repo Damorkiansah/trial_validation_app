@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\TrialController;
 use App\Http\Controllers\TrialValidationController;
+use App\Http\Controllers\TrialWeighingController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->prefix('trials')->as('trials.')->group(function () {
@@ -12,6 +13,11 @@ Route::middleware(['auth', 'verified'])->prefix('trials')->as('trials.')->group(
 
     Route::get('{trial}/validation', [TrialValidationController::class, 'edit'])->whereNumber('trial')->name('validation.edit');
     Route::put('{trial}/validation', [TrialValidationController::class, 'update'])->whereNumber('trial')->name('validation.update');
+
+    Route::get('{trial}/weighing/{section}', [TrialWeighingController::class, 'edit'])
+        ->whereNumber('trial')->whereIn('section', ['Packaging', 'Filling'])->name('weighing.edit');
+    Route::put('{trial}/weighing/{section}', [TrialWeighingController::class, 'update'])
+        ->whereNumber('trial')->whereIn('section', ['Packaging', 'Filling'])->name('weighing.update');
 
     Route::get('{group}', [TrialController::class, 'index'])
         ->whereIn('group', ['approved', 'in-review', 'need-revision', 'rejected', 'waiting-approval', 'draft'])

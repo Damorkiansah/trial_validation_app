@@ -96,6 +96,14 @@ class Trial extends Model
     }
 
     /**
+     * @return HasMany<TrialWeighing, $this>
+     */
+    public function weighings(): HasMany
+    {
+        return $this->hasMany(TrialWeighing::class, 'trial_id');
+    }
+
+    /**
      * Named `deletedByUser` (not `deletedBy`) so JSON serialization keys it
      * as `deleted_by_user` — Eloquent's toArray() otherwise collides a
      * loaded relation's snake_case key with the raw `deleted_by` column
