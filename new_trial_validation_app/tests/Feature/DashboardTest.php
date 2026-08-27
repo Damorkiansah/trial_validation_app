@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Trial;
+use App\Models\TrialReview;
 use App\Models\User;
 
 function makeDashboardTrial(array $attributes = []): Trial
@@ -79,4 +80,46 @@ test('a non-super-admin does not see another user\'s draft trial', function () {
     $response->assertInertia(fn ($page) => $page
         ->where('trials.data', fn ($data) => collect($data)->pluck('trial_code')->contains('TRIAL-OWN-DRAFT')
             && ! collect($data)->pluck('trial_code')->contains('TRIAL-SOMEONE-ELSE-DRAFT')));
+});
+
+test('myWork lists the current user\'s own active trials but excludes finished ones', function () {
+    $staff = User::factory()->create(['email' => 'staff@local.test']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-MINE-DRAFT', 'progress_status' => 'Draft', 'created_by' => 'staff@local.test']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-MINE-APPROVED', 'progress_status' => 'Approved', 'created_by' => 'staff@local.test']);
+    makeDashboardTrial(['trial_code' => 'TRIAL-SOMEONE-ELSE', 'progress_status' => 'Draft', 'created_by' => 'other@local.test']);
+
+    $response = $this->actingAs($staff)->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('myWork.myTrialsTotal', 1)
+        ->has('myWork.myTrials', 1)
+        ->where('myWork.myTrials.0.trial_code', 'TRIAL-MINE-DRAFT'));
+});
+
+test('myWork lists pending reviews for the current user\'s department only', function () {
+    $reviewer = User::factory()->role('PRD')->create();
+    $trial = makeDashboardTrial(['trial_code' => 'TRIAL-REVIEW-MINE', 'progress_status' => 'In Review', 'revision_no' => 0]);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Pending']);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
+
+    $response = $this->actingAs($reviewer)->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('myWork.pendingReviewsTotal', 1)
+        ->has('myWork.pendingReviews', 1)
+        ->where('myWork.pendingReviews.0.trial_code', 'TRIAL-REVIEW-MINE')
+        ->where('myWork.pendingReviews.0.department', 'PRD'));
+});
+
+test('myWork lists only approvals specifically assigned to the current user, not the whole approval queue', function () {
+    $managerQac = User::factory()->role('Manager QAC')->create();
+    makeDashboardTrial(['trial_code' => 'TRIAL-APPROVAL-MINE', 'progress_status' => 'Ready for Approval', 'approver_user_id' => $managerQac->id]);
+    makeDashboardTrial(['trial_code' => 'TRIAL-APPROVAL-OTHER', 'progress_status' => 'Ready for Approval', 'approver_user_id' => null]);
+
+    $response = $this->actingAs($managerQac)->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('myWork.pendingApprovalsTotal', 1)
+        ->has('myWork.pendingApprovals', 1)
+        ->where('myWork.pendingApprovals.0.trial_code', 'TRIAL-APPROVAL-MINE'));
 });

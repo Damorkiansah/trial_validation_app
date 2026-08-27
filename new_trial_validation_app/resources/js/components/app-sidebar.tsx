@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     AlertTriangle,
+    ArrowLeftRight,
     Bell,
     CheckCircle2,
     CircleCheckBig,
@@ -91,11 +92,34 @@ export function AppSidebar() {
                     href: trialsIndex('in-review'),
                     icon: Search,
                 },
+                ...(canReviewTrials
+                    ? [
+                          {
+                              title: 'Review Queue Saya',
+                              href: reviewsIndex(),
+                              icon: ClipboardCheck,
+                          },
+                      ]
+                    : []),
                 {
                     title: 'Ready for Approval',
                     href: trialsIndex('waiting-approval'),
                     icon: Clock,
                 },
+                ...(canApproveTrials
+                    ? [
+                          {
+                              title: 'Approval Queue Saya',
+                              href: approvalsIndex(),
+                              icon: CircleCheckBig,
+                          },
+                      ]
+                    : []),
+            ],
+        },
+        {
+            label: 'Hasil',
+            items: [
                 {
                     title: 'Approved',
                     href: trialsIndex('approved'),
@@ -112,30 +136,6 @@ export function AppSidebar() {
                     icon: XCircle,
                 },
             ],
-        },
-        {
-            label: 'Reviews',
-            items: canReviewTrials
-                ? [
-                      {
-                          title: 'Review Queue',
-                          href: reviewsIndex(),
-                          icon: ClipboardCheck,
-                      },
-                  ]
-                : [],
-        },
-        {
-            label: 'Approval',
-            items: canApproveTrials
-                ? [
-                      {
-                          title: 'Approval Queue',
-                          href: approvalsIndex(),
-                          icon: CircleCheckBig,
-                      },
-                  ]
-                : [],
         },
         {
             label: 'Report',
@@ -235,6 +235,21 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            asChild
+                            tooltip={{ children: 'Buka Aplikasi Lama' }}
+                        >
+                            {/* plain anchor, not Inertia Link: this hits a redirect to another
+                                origin (the legacy app), which an Inertia XHR visit can't follow */}
+                            <a href="/sso/to-old">
+                                <ArrowLeftRight />
+                                <span>Aplikasi Lama</span>
+                            </a>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

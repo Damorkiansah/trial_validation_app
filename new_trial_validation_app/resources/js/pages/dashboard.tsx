@@ -11,6 +11,8 @@ import {
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
+import { MyWorkSection } from '@/components/my-work-section';
+import type { MyWork } from '@/components/my-work-section';
 import { TrialsTable } from '@/components/trials-table';
 import type { TrialRow } from '@/components/trials-table';
 import { Button } from '@/components/ui/button';
@@ -46,6 +48,7 @@ type PageProps = {
     productTypes: string[];
     summary: Summary;
     canCreateTrial: boolean;
+    myWork: MyWork;
 };
 
 const summaryCards: {
@@ -104,6 +107,7 @@ export default function Dashboard({
     productTypes,
     summary,
     canCreateTrial,
+    myWork,
 }: PageProps) {
     const [form, setForm] = useState<Filters>(filters);
 
@@ -135,6 +139,8 @@ export default function Dashboard({
                         </Button>
                     )}
                 </div>
+
+                <MyWorkSection myWork={myWork} />
 
                 <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
                     {summaryCards.map((card) => (

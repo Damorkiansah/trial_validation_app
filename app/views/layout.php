@@ -110,6 +110,7 @@ if(!$isLogin){
         </div>
       <?php endforeach; ?>
     </nav>
+    <a href="/sso/to-new" class="side-link logout-side"><span class="nav-icon">&#8594;</span><span>Buka Aplikasi Baru</span></a>
     <a href="/logout" class="side-link logout-side"><span class="nav-icon">L</span><span>Logout</span></a>
   </aside>
   <div class="app-main">

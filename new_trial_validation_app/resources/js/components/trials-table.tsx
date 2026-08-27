@@ -5,7 +5,9 @@ import {
     getCoreRowModel,
     useReactTable,
 } from '@tanstack/react-table';
+import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
 import { PaginationFooter } from '@/components/pagination-footer';
+import { TrialStepProgress } from '@/components/trial-step-progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -38,7 +40,17 @@ export type TrialRow = {
 const columnHelper = createColumnHelper<TrialRow>();
 
 const columns = [
-    columnHelper.accessor('trial_code', { header: 'Trial ID' }),
+    columnHelper.accessor('trial_code', {
+        header: 'Trial ID',
+        cell: (info) => (
+            <Link
+                href={TrialReportController.show(info.row.original.id).url}
+                className="font-medium underline underline-offset-2"
+            >
+                {info.getValue()}
+            </Link>
+        ),
+    }),
     columnHelper.accessor('product_name', { header: 'Product Name' }),
     columnHelper.accessor('finish_good_code', { header: 'Finish Good Code' }),
     columnHelper.accessor('product_type', { header: 'Product Type' }),
@@ -58,7 +70,12 @@ const columns = [
     }),
     columnHelper.accessor('current_step', {
         header: 'Current Step',
-        cell: (info) => info.getValue() ?? '-',
+        cell: (info) => (
+            <div className="space-y-1.5">
+                <div>{info.getValue() ?? '-'}</div>
+                <TrialStepProgress trial={info.row.original} />
+            </div>
+        ),
     }),
     columnHelper.accessor('created_at', { header: 'Created Date' }),
     columnHelper.accessor('pending_with', {

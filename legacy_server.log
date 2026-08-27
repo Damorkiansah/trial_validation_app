@@ -1,0 +1,64 @@
+[Thu Aug 27 16:25:10 2026] PHP 8.5.8 Development Server (http://localhost:8000) started
+[Thu Aug 27 16:36:02 2026] [::1]:55445 Accepted
+[Thu Aug 27 16:36:02 2026] [::1]:55445 [302]: GET /sso/consume?ticket=f6e1bd19e43242a07880a02a402c284445a65b6b067b5c2086268cdb36b010f6
+[Thu Aug 27 16:36:02 2026] [::1]:55445 Closing
+[Thu Aug 27 16:36:02 2026] [::1]:49398 Accepted
+[Thu Aug 27 16:36:02 2026] [::1]:49398 [302]: GET /
+[Thu Aug 27 16:36:02 2026] [::1]:49398 Closing
+[Thu Aug 27 16:36:02 2026] [::1]:62334 Accepted
+[Thu Aug 27 16:36:02 2026] [::1]:62334 [200]: GET /dashboard
+[Thu Aug 27 16:36:02 2026] [::1]:62334 Closing
+[Thu Aug 27 16:36:03 2026] [::1]:59955 Accepted
+[Thu Aug 27 16:36:03 2026] [::1]:59955 [200]: GET /style.css
+[Thu Aug 27 16:36:03 2026] [::1]:59955 Closing
+[Thu Aug 27 16:36:03 2026] [::1]:53299 Accepted
+[Thu Aug 27 16:36:03 2026] [::1]:53299 [404]: GET /favicon.ico
+[Thu Aug 27 16:36:03 2026] [::1]:53299 Closing
+[Thu Aug 27 16:36:09 2026] [::1]:51314 Accepted
+[Thu Aug 27 16:36:09 2026] [::1]:51314 [302]: GET /sso/to-new
+[Thu Aug 27 16:36:09 2026] [::1]:51314 Closing
+[Thu Aug 27 16:37:45 2026] [::1]:64961 Accepted
+[Thu Aug 27 16:37:45 2026] [::1]:64961 [302]: GET /sso/consume?ticket=715b84efe3122753fe73eb3a7bac5f2e2da7a24769e6e64d1468907cc709ac44
+[Thu Aug 27 16:37:45 2026] [::1]:64961 Closing
+[Thu Aug 27 16:37:45 2026] [::1]:56005 Accepted
+[Thu Aug 27 16:37:45 2026] [::1]:56005 [302]: GET /
+[Thu Aug 27 16:37:45 2026] [::1]:56005 Closing
+[Thu Aug 27 16:37:45 2026] [::1]:54755 Accepted
+[Thu Aug 27 16:37:45 2026] [::1]:54755 [200]: GET /dashboard
+[Thu Aug 27 16:37:45 2026] [::1]:54755 Closing
+[Thu Aug 27 16:37:45 2026] [::1]:60141 Accepted
+[Thu Aug 27 16:37:45 2026] [::1]:60141 [200]: GET /style.css
+[Thu Aug 27 16:37:45 2026] [::1]:60141 Closing
+[Thu Aug 27 16:37:51 2026] [::1]:54078 Accepted
+[Thu Aug 27 16:37:51 2026] [::1]:54078 [302]: GET /sso/to-new
+[Thu Aug 27 16:37:51 2026] [::1]:54078 Closing
+[Thu Aug 27 16:38:28 2026] [::1]:51101 Accepted
+[Thu Aug 27 16:38:28 2026] [::1]:51101 [302]: GET /sso/consume?ticket=31f17b1f798b133e867d1aada554f8b316254d7087cc7f864c768736384a8ab4
+[Thu Aug 27 16:38:28 2026] [::1]:51101 Closing
+[Thu Aug 27 16:38:28 2026] [::1]:62007 Accepted
+[Thu Aug 27 16:38:28 2026] [::1]:62007 [302]: GET /
+[Thu Aug 27 16:38:28 2026] [::1]:62007 Closing
+[Thu Aug 27 16:38:28 2026] [::1]:55152 Accepted
+[Thu Aug 27 16:38:28 2026] [::1]:55152 [200]: GET /dashboard
+[Thu Aug 27 16:38:28 2026] [::1]:55152 Closing
+[Thu Aug 27 16:38:28 2026] [::1]:64464 Accepted
+[Thu Aug 27 16:38:28 2026] [::1]:64464 [200]: GET /style.css
+[Thu Aug 27 16:38:28 2026] [::1]:64464 Closing
+[Thu Aug 27 16:38:56 2026] [::1]:50852 Accepted
+[Thu Aug 27 16:38:56 2026] [::1]:50852 [302]: GET /sso/to-new
+[Thu Aug 27 16:38:56 2026] [::1]:50852 Closing
+[Thu Aug 27 17:05:04 2026] [::1]:54537 Accepted
+[Thu Aug 27 17:05:04 2026] [::1]:54537 [302]: GET /sso/consume?ticket=033d45b70df9f72214751b1c06529df765c8218a62df8fd4b4de03c5bcd230ad
+[Thu Aug 27 17:05:04 2026] [::1]:54537 Closing
+[Thu Aug 27 17:05:04 2026] [::1]:63020 Accepted
+[Thu Aug 27 17:05:04 2026] [::1]:63020 [302]: GET /
+[Thu Aug 27 17:05:04 2026] [::1]:63020 Closing
+[Thu Aug 27 17:05:04 2026] [::1]:49705 Accepted
+[Thu Aug 27 17:05:04 2026] [::1]:49705 [200]: GET /dashboard
+[Thu Aug 27 17:05:04 2026] [::1]:49705 Closing
+[Thu Aug 27 17:05:04 2026] [::1]:57624 Accepted
+[Thu Aug 27 17:05:04 2026] [::1]:57624 [200]: GET /style.css
+[Thu Aug 27 17:05:04 2026] [::1]:57624 Closing
+[Thu Aug 27 17:05:10 2026] [::1]:54090 Accepted
+[Thu Aug 27 17:05:10 2026] [::1]:54090 [302]: GET /sso/to-new
+[Thu Aug 27 17:05:10 2026] [::1]:54090 Closing

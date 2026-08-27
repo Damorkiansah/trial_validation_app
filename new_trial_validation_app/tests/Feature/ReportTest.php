@@ -236,6 +236,38 @@ test('a soft-deleted trial 404s on the per-trial report page', function () {
     $this->actingAs($owner)->get(route('trials.report.show', $trial))->assertNotFound();
 });
 
+test('an approver who is not the assigned approver sees a note explaining why they cannot act', function () {
+    $assignedApprover = User::factory()->create();
+    $teamLeader = User::factory()->role('Team Leader')->create();
+    $trial = makeReportTrial([
+        'trial_code' => 'TRIAL-APPROVAL-BLOCKED',
+        'progress_status' => 'Ready for Approval',
+        'approver_user_id' => $assignedApprover->id,
+        'pending_with' => 'manager qac',
+    ]);
+
+    $response = $this->actingAs($teamLeader)->get(route('trials.report.show', $trial));
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('canApprove', false)
+        ->where('approvalBlockedNote', fn ($note) => $note !== null && str_contains($note, 'manager qac'))
+        ->where('reviewCompletedNote', null));
+});
+
+test('a reviewer who already reviewed their department sees a note once no pending review remains', function () {
+    $reviewer = User::factory()->role('PRD')->create();
+    $trial = makeReportTrial(['trial_code' => 'TRIAL-REVIEW-DONE', 'progress_status' => 'In Review', 'revision_no' => 0]);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'PRD', 'review_round' => 1, 'status' => 'Reviewed', 'reviewed_at' => Carbon::now()]);
+    TrialReview::create(['trial_id' => $trial->id, 'department' => 'QAC', 'review_round' => 1, 'status' => 'Pending']);
+
+    $response = $this->actingAs($reviewer)->get(route('trials.report.show', $trial));
+
+    $response->assertInertia(fn ($page) => $page
+        ->has('pendingReviews', 0)
+        ->where('reviewCompletedNote', fn ($note) => $note !== null)
+        ->where('approvalBlockedNote', null));
+});
+
 test('printing a report writes both an AuditLog and an ActivityLog row', function () {
     $owner = User::factory()->create(['email' => 'owner@local.test']);
     $trial = makeReportTrial(['created_by' => $owner->email]);

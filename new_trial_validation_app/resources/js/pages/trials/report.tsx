@@ -105,6 +105,8 @@ type PageProps = {
     canEdit: boolean;
     canApprove: boolean;
     pendingReviews: PendingReview[];
+    approvalBlockedNote: string | null;
+    reviewCompletedNote: string | null;
 };
 
 const APPROVAL_DECISIONS = [
@@ -142,6 +144,8 @@ export default function TrialReport({
     canEdit,
     canApprove,
     pendingReviews,
+    approvalBlockedNote,
+    reviewCompletedNote,
 }: PageProps) {
     const managerDecision = trial.final_decision ?? trial.progress_status;
     const hasDecision =
@@ -190,6 +194,24 @@ export default function TrialReport({
                     />
                     <Button onClick={handlePrint}>Print</Button>
                 </div>
+
+                {approvalBlockedNote && (
+                    <Alert className="print:hidden">
+                        <AlertTitle>Belum giliran Anda</AlertTitle>
+                        <AlertDescription>
+                            {approvalBlockedNote}
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {reviewCompletedNote && (
+                    <Alert className="print:hidden">
+                        <AlertTitle>Review Anda sudah selesai</AlertTitle>
+                        <AlertDescription>
+                            {reviewCompletedNote}
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                 {canEdit && (
                     <div className="flex flex-wrap items-center gap-3 print:hidden">

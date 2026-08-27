@@ -97,6 +97,22 @@ class TrialReportController extends Controller
 
         $reviewByDept = $trial->reviewStatusByDepartment();
 
+        $approvalBlockedNote = null;
+        if ($trial->progress_status === 'Ready for Approval' && ! $canApprove && $user->canApproveTrials()) {
+            $approvalBlockedNote = 'Menunggu approval oleh '.($trial->pending_with ?: 'approver lain').', bukan giliran Anda.';
+        }
+
+        $reviewCompletedNote = null;
+        if ($trial->progress_status === 'In Review' && $user->isReviewer() && $pendingReviews->isEmpty()) {
+            $myDepartments = $user->reviewDepartmentsForUser();
+            foreach ($reviewByDept as $dept => $entry) {
+                if ($entry['status'] === 'Reviewed' && in_array(User::normalizeDepartment($dept), $myDepartments, true)) {
+                    $reviewCompletedNote = 'Anda sudah menyelesaikan review department Anda untuk trial ini.';
+                    break;
+                }
+            }
+        }
+
         return Inertia::render('trials/report', [
             'trial' => $trial,
             'results' => $results->map(fn (TrialResult $r) => [
@@ -125,6 +141,8 @@ class TrialReportController extends Controller
                 'id' => $r->id,
                 'department' => $r->department,
             ])->values(),
+            'approvalBlockedNote' => $approvalBlockedNote,
+            'reviewCompletedNote' => $reviewCompletedNote,
         ]);
     }
 
