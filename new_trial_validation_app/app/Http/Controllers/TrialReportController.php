@@ -7,10 +7,12 @@ use App\Actions\Trials\RecordReportPrint;
 use App\Models\Trial;
 use App\Models\TrialAttachmentFile;
 use App\Models\TrialResult;
+use App\Models\TrialReview;
 use App\Models\TrialWeighing;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,14 +25,40 @@ use Inertia\Response;
  * carved out into its own wizard Step 6 (see App\Http\Controllers\TrialReviewController),
  * so this controller doesn't duplicate it — show() only surfaces a
  * completeness note plus a link to that page when applicable.
+ *
+ * Also doubles as the single "detail" page an approver/reviewer lands on from
+ * the Approval Queue / Review Queue (see ApprovalController::index() /
+ * ReviewController::index()) — canApprove/pendingReviews below let this same
+ * page carry the actual decision/review action inline, so acting on a trial
+ * never requires bouncing back out to the list.
  */
 class TrialReportController extends Controller
 {
-    public function show(int $trial): Response
+    public function show(Request $request, int $trial): Response
     {
         $trial = Trial::whereNull('deleted_at')->with(['product', 'approver'])->findOrFail($trial);
 
         Gate::authorize('view', $trial);
+
+        $user = $request->user();
+
+        $canApprove = $trial->progress_status === 'Ready for Approval' && Gate::allows('approve', $trial);
+
+        $pendingReviews = collect();
+        if ($trial->progress_status === 'In Review' && $user->isReviewer()) {
+            $departments = $user->reviewDepartmentsForUser();
+
+            $pendingReviews = TrialReview::query()
+                ->where('trial_id', $trial->id)
+                ->where('review_round', $trial->currentReviewRound())
+                ->where('status', 'Pending')
+                ->when(
+                    $departments,
+                    fn ($q) => $q->whereIn(DB::raw('UPPER(TRIM(department))'), $departments),
+                    fn ($q) => $q->whereRaw('1 = 0'),
+                )
+                ->get(['id', 'department']);
+        }
 
         $results = TrialResult::query()
             ->where('trial_id', $trial->id)
@@ -92,6 +120,11 @@ class TrialReportController extends Controller
             'rejectedByName' => $trial->rejected_by ? User::displayName($trial->rejected_by) : null,
             'completeness' => (new CheckTrialCompleteness)($trial),
             'canEdit' => Gate::allows('update', $trial),
+            'canApprove' => $canApprove,
+            'pendingReviews' => $pendingReviews->map(fn (TrialReview $r) => [
+                'id' => $r->id,
+                'department' => $r->department,
+            ])->values(),
         ]);
     }
 

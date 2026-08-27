@@ -1,10 +1,15 @@
-import { Head, Link } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
+import ApprovalController from '@/actions/App/Http/Controllers/ApprovalController';
+import ReviewController from '@/actions/App/Http/Controllers/ReviewController';
 import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import Heading from '@/components/heading';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Table,
     TableBody,
@@ -13,6 +18,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { handleAttachmentImageError } from '@/lib/image-fallback';
 import { trialStatusBadgeClassName } from '@/lib/trial-status';
 import { dashboard } from '@/routes';
 import { edit as attachmentsEdit } from '@/routes/trials/attachments';
@@ -81,6 +88,11 @@ type ReviewItem = {
     comment: string | null;
 };
 
+type PendingReview = {
+    id: number;
+    department: string;
+};
+
 type PageProps = {
     trial: TrialData;
     results: ResultItem[];
@@ -91,7 +103,19 @@ type PageProps = {
     rejectedByName: string | null;
     completeness: string[];
     canEdit: boolean;
+    canApprove: boolean;
+    pendingReviews: PendingReview[];
 };
+
+const APPROVAL_DECISIONS = [
+    { value: 'Approved', label: 'Approve', variant: 'default' as const },
+    {
+        value: 'Need Revision',
+        label: 'Need Revision',
+        variant: 'outline' as const,
+    },
+    { value: 'Rejected', label: 'Reject', variant: 'destructive' as const },
+];
 
 const DECISION_LABEL: Record<string, { by: string; at: string }> = {
     Approved: { by: 'Approved By', at: 'Approved At' },
@@ -116,6 +140,8 @@ export default function TrialReport({
     rejectedByName,
     completeness,
     canEdit,
+    canApprove,
+    pendingReviews,
 }: PageProps) {
     const managerDecision = trial.final_decision ?? trial.progress_status;
     const hasDecision =
@@ -527,6 +553,9 @@ export default function TrialReport({
                                                                 alt={
                                                                     file.file_name
                                                                 }
+                                                                onError={
+                                                                    handleAttachmentImageError
+                                                                }
                                                                 className="aspect-square w-full rounded object-cover"
                                                             />
                                                             <figcaption className="truncate text-xs text-muted-foreground">
@@ -581,6 +610,159 @@ export default function TrialReport({
                                 </TableBody>
                             </Table>
                         </div>
+
+                        {pendingReviews.length > 0 && (
+                            <div className="print:hidden">
+                                <h3 className="mb-2 text-base font-semibold">
+                                    Review Department Anda
+                                </h3>
+                                <div className="space-y-4">
+                                    {pendingReviews.map((pending) => (
+                                        <Form
+                                            key={pending.id}
+                                            {...ReviewController.update.form(
+                                                pending.id,
+                                            )}
+                                        >
+                                            {({ processing, errors }) => (
+                                                <Card>
+                                                    <CardHeader>
+                                                        <CardTitle className="text-sm">
+                                                            Submit review untuk
+                                                            department{' '}
+                                                            {pending.department}
+                                                        </CardTitle>
+                                                    </CardHeader>
+                                                    <CardContent className="space-y-3">
+                                                        {errors.comment && (
+                                                            <Alert variant="destructive">
+                                                                <AlertDescription>
+                                                                    {
+                                                                        errors.comment
+                                                                    }
+                                                                </AlertDescription>
+                                                            </Alert>
+                                                        )}
+                                                        <Textarea
+                                                            name="comment"
+                                                            required
+                                                            placeholder="Comment review..."
+                                                        />
+                                                        <div className="flex justify-end">
+                                                            <Button
+                                                                type="submit"
+                                                                disabled={
+                                                                    processing
+                                                                }
+                                                            >
+                                                                Submit Review
+                                                            </Button>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            )}
+                                        </Form>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {canApprove && (
+                            <div className="print:hidden">
+                                <h3 className="mb-2 text-base font-semibold">
+                                    Keputusan Approval
+                                </h3>
+                                <Card>
+                                    <CardContent className="flex flex-wrap gap-2 pt-6">
+                                        {APPROVAL_DECISIONS.map((decision) => (
+                                            <ConfirmDialog
+                                                key={decision.value}
+                                                trigger={
+                                                    <Button
+                                                        type="button"
+                                                        variant={
+                                                            decision.variant
+                                                        }
+                                                    >
+                                                        {decision.label}
+                                                    </Button>
+                                                }
+                                                title={`${decision.label} — ${trial.trial_code}`}
+                                                description="Masukkan comment dan password akun Anda sebagai e-signature untuk mengonfirmasi keputusan ini."
+                                                confirmLabel={decision.label}
+                                                confirmVariant={
+                                                    decision.variant
+                                                }
+                                                formProps={ApprovalController.update.form(
+                                                    trial.id,
+                                                )}
+                                            >
+                                                {({ errors }) => (
+                                                    <div className="space-y-3">
+                                                        <input
+                                                            type="hidden"
+                                                            name="decision"
+                                                            value={
+                                                                decision.value
+                                                            }
+                                                        />
+                                                        <div className="grid gap-2">
+                                                            <Label
+                                                                htmlFor={`approval_comment_${decision.value}`}
+                                                            >
+                                                                Comment
+                                                            </Label>
+                                                            <Textarea
+                                                                id={`approval_comment_${decision.value}`}
+                                                                name="approval_comment"
+                                                                required
+                                                                placeholder="Comment approval..."
+                                                            />
+                                                            {errors.approval_comment && (
+                                                                <p className="text-sm text-destructive">
+                                                                    {
+                                                                        errors.approval_comment
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <div className="grid gap-2">
+                                                            <Label
+                                                                htmlFor={`signature_password_${decision.value}`}
+                                                            >
+                                                                Password
+                                                                e-signature
+                                                            </Label>
+                                                            <Input
+                                                                id={`signature_password_${decision.value}`}
+                                                                type="password"
+                                                                name="signature_password"
+                                                                required
+                                                                autoComplete="current-password"
+                                                            />
+                                                            {errors.signature_password && (
+                                                                <p className="text-sm text-destructive">
+                                                                    {
+                                                                        errors.signature_password
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        {errors.decision && (
+                                                            <p className="text-sm text-destructive">
+                                                                {
+                                                                    errors.decision
+                                                                }
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </ConfirmDialog>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        )}
 
                         {hasDecision && (
                             <div>

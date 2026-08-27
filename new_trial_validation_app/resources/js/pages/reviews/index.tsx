@@ -1,8 +1,7 @@
-import { Form, Head, Link } from '@inertiajs/react';
-import ReviewController from '@/actions/App/Http/Controllers/ReviewController';
+import { Head, Link } from '@inertiajs/react';
+import TrialReportController from '@/actions/App/Http/Controllers/TrialReportController';
 import Heading from '@/components/heading';
 import { PaginationFooter } from '@/components/pagination-footer';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -13,9 +12,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
 import { index as reviewsIndex } from '@/routes/reviews';
-import { edit as reviewEdit } from '@/routes/trials/review';
 import type { Paginated } from '@/types';
 
 type ReviewItem = {
@@ -56,6 +53,7 @@ export default function ReviewsIndex({ items }: PageProps) {
                                     <TableHead>Status</TableHead>
                                     <TableHead>Reviewer</TableHead>
                                     <TableHead>Comment</TableHead>
+                                    <TableHead></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -64,9 +62,9 @@ export default function ReviewsIndex({ items }: PageProps) {
                                         <TableCell>
                                             <Link
                                                 href={
-                                                    reviewEdit({
-                                                        trial: item.trial_id,
-                                                    }).url
+                                                    TrialReportController.show(
+                                                        item.trial_id,
+                                                    ).url
                                                 }
                                                 className="font-medium underline"
                                             >
@@ -83,47 +81,22 @@ export default function ReviewsIndex({ items }: PageProps) {
                                         <TableCell>
                                             {item.reviewer_name ?? '-'}
                                         </TableCell>
-                                        <TableCell className="min-w-64">
-                                            {item.active ? (
-                                                <Form
-                                                    {...ReviewController.update.form(
-                                                        item.id,
-                                                    )}
-                                                    className="space-y-2"
-                                                >
-                                                    {({
-                                                        processing,
-                                                        errors,
-                                                    }) => (
-                                                        <>
-                                                            {errors.comment && (
-                                                                <Alert variant="destructive">
-                                                                    <AlertDescription>
-                                                                        {
-                                                                            errors.comment
-                                                                        }
-                                                                    </AlertDescription>
-                                                                </Alert>
-                                                            )}
-                                                            <Textarea
-                                                                name="comment"
-                                                                required
-                                                                placeholder="Comment review..."
-                                                            />
-                                                            <Button
-                                                                type="submit"
-                                                                size="sm"
-                                                                disabled={
-                                                                    processing
-                                                                }
-                                                            >
-                                                                Submit Review
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                </Form>
-                                            ) : (
-                                                (item.comment ?? '-')
+                                        <TableCell>
+                                            {item.comment ?? '-'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {item.active && (
+                                                <Button size="sm" asChild>
+                                                    <Link
+                                                        href={
+                                                            TrialReportController.show(
+                                                                item.trial_id,
+                                                            ).url
+                                                        }
+                                                    >
+                                                        Tinjau & Review
+                                                    </Link>
+                                                </Button>
                                             )}
                                         </TableCell>
                                     </TableRow>
@@ -131,7 +104,7 @@ export default function ReviewsIndex({ items }: PageProps) {
                                 {items.data.length === 0 && (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={6}
+                                            colSpan={7}
                                             className="p-4 text-center text-muted-foreground"
                                         >
                                             Tidak ada review pending.

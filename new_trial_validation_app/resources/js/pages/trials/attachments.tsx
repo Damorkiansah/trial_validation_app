@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { handleAttachmentImageError } from '@/lib/image-fallback';
 import { trialStatusBadgeClassName } from '@/lib/trial-status';
 import { dashboard } from '@/routes';
 import { edit as reviewEdit } from '@/routes/trials/review';
@@ -271,6 +272,7 @@ export default function TrialAttachments({
                                         <img
                                             src={file.url}
                                             alt={file.file_name}
+                                            onError={handleAttachmentImageError}
                                             className="aspect-square w-full rounded object-cover"
                                         />
                                         <figcaption className="truncate text-xs text-muted-foreground">
