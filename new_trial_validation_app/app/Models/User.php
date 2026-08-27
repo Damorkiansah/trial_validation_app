@@ -76,6 +76,30 @@ class User extends Authenticatable
         return '';
     }
 
+    /**
+     * Port of display_person_name() (app/bootstrap.php:42-54): several
+     * report-facing columns (approved_by/rejected_by/reviewer_name) can hold
+     * a bare email address on rows the still-live legacy app itself wrote —
+     * this resolves it to that user's real name when possible, else returns
+     * the value as-is.
+     */
+    public static function displayName(?string $value): string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '';
+        }
+
+        if (str_contains($value, '@')) {
+            $name = trim((string) self::query()->where('email', $value)->value('name'));
+            if ($name !== '') {
+                return $name;
+            }
+        }
+
+        return $value;
+    }
+
     public static function normalizeDepartment(?string $dept): string
     {
         $dept = strtoupper(trim((string) $dept));

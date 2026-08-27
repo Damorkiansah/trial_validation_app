@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
@@ -38,5 +39,13 @@ class TrialResult extends Model
         return [
             'updated_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @return BelongsTo<ValidationParameter, $this>
+     */
+    public function parameter(): BelongsTo
+    {
+        return $this->belongsTo(ValidationParameter::class, 'parameter_id');
     }
 }

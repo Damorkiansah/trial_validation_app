@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\TrialAttachmentController;
 use App\Http\Controllers\TrialController;
+use App\Http\Controllers\TrialReportController;
 use App\Http\Controllers\TrialReviewController;
 use App\Http\Controllers\TrialValidationController;
 use App\Http\Controllers\TrialWeighingController;
@@ -30,6 +31,9 @@ Route::middleware(['auth', 'verified'])->prefix('trials')->as('trials.')->group(
 
     Route::get('{trial}/review', [TrialReviewController::class, 'edit'])->whereNumber('trial')->name('review.edit');
     Route::post('{trial}/review', [TrialReviewController::class, 'store'])->whereNumber('trial')->name('review.store');
+
+    Route::get('{trial}/report', [TrialReportController::class, 'show'])->whereNumber('trial')->name('report.show');
+    Route::post('{trial}/report/print-log', [TrialReportController::class, 'logPrint'])->whereNumber('trial')->name('report.print-log');
 
     Route::get('{group}', [TrialController::class, 'index'])
         ->whereIn('group', ['approved', 'in-review', 'need-revision', 'rejected', 'waiting-approval', 'draft'])

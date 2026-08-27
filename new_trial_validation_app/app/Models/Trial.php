@@ -26,6 +26,12 @@ use Illuminate\Support\Facades\DB;
  * @property int $revision_no
  * @property int|null $approver_user_id
  * @property string|null $created_by
+ * @property string|null $approved_by
+ * @property Carbon|null $approved_at
+ * @property string|null $rejected_by
+ * @property Carbon|null $rejected_at
+ * @property string|null $approval_comment
+ * @property string|null $pending_with
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
@@ -147,6 +153,36 @@ class Trial extends Model
     public function currentReviewRound(): int
     {
         return (int) $this->revision_no + 1;
+    }
+
+    /**
+     * Per-department review pivot for this trial's current review round —
+     * factors out the inline computation legacy repeats in both report.php
+     * and report_department_review.php (public/index.php:281-308). Every
+     * known reviewer department gets an entry, defaulting to N/A when no
+     * trials_review row exists for it in the current round.
+     *
+     * @return array<string, array{status: string, review: TrialReview|null}>
+     */
+    public function reviewStatusByDepartment(): array
+    {
+        $round = $this->currentReviewRound();
+
+        $reviews = $this->reviews()
+            ->where('review_round', $round)
+            ->get()
+            ->keyBy(fn (TrialReview $r) => User::normalizeDepartment($r->department));
+
+        $result = [];
+        foreach (User::reviewerDepartmentCodes() as $dept) {
+            $review = $reviews->get(User::normalizeDepartment($dept));
+            $result[$dept] = [
+                'status' => $review->status ?? 'N/A',
+                'review' => $review,
+            ];
+        }
+
+        return $result;
     }
 
     /**
@@ -289,6 +325,56 @@ class Trial extends Model
         $dateTo = trim($filters['date_to'] ?? '');
         if ($dateTo !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo) === 1) {
             $query->where('validation_date', '<=', $dateTo);
+        }
+
+        return $query;
+    }
+
+    /**
+     * List-page filters for /report/trial-summary (public/index.php:262-279)
+     * — a distinct field set from scopeSearch() above (adds validation_scope/
+     * machine_used/product_name as individual LIKE filters instead of one
+     * free-text q, and a status filter instead of a fixed status group).
+     *
+     * @param  Builder<Trial>  $query
+     * @param  array<string, string>  $filters
+     * @return Builder<Trial>
+     */
+    public function scopeTrialSummaryFilters(Builder $query, array $filters): Builder
+    {
+        $dateFrom = trim($filters['date_from'] ?? '');
+        if ($dateFrom !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom) === 1) {
+            $query->where('validation_date', '>=', $dateFrom);
+        }
+
+        $dateTo = trim($filters['date_to'] ?? '');
+        if ($dateTo !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo) === 1) {
+            $query->where('validation_date', '<=', $dateTo);
+        }
+
+        $status = trim($filters['status'] ?? '');
+        if ($status !== '') {
+            $query->where('progress_status', $status);
+        }
+
+        $productType = trim($filters['product_type'] ?? '');
+        if ($productType !== '') {
+            $query->where('product_type', $productType);
+        }
+
+        $validationScope = trim($filters['validation_scope'] ?? '');
+        if ($validationScope !== '') {
+            $query->where('validation_scope', 'like', '%'.$validationScope.'%');
+        }
+
+        $machineUsed = trim($filters['machine_used'] ?? '');
+        if ($machineUsed !== '') {
+            $query->where('machine_used', 'like', '%'.$machineUsed.'%');
+        }
+
+        $productName = trim($filters['product_name'] ?? '');
+        if ($productName !== '') {
+            $query->where('product_name', 'like', '%'.$productName.'%');
         }
 
         return $query;

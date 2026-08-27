@@ -14,6 +14,7 @@ import {
     LayoutGrid,
     ListTree,
     Package,
+    Printer,
     Search,
     Trash2,
     Users,
@@ -41,6 +42,7 @@ import { index as productsIndex } from '@/routes/admin/products';
 import { index as trashIndex } from '@/routes/admin/trash';
 import { index as usersIndex } from '@/routes/admin/users';
 import { index as approvalsIndex } from '@/routes/approvals';
+import { index as reportsIndex } from '@/routes/reports';
 import { index as reviewsIndex } from '@/routes/reviews';
 import { create as createTrial, index as trialsIndex } from '@/routes/trials';
 import type { Auth, NavGroup } from '@/types';
@@ -136,6 +138,16 @@ export function AppSidebar() {
                 : [],
         },
         {
+            label: 'Report',
+            items: [
+                {
+                    title: 'Reports',
+                    href: reportsIndex(),
+                    icon: Printer,
+                },
+            ],
+        },
+        {
             label: 'Master Data',
             items: canManageTemplates
                 ? [
@@ -205,7 +217,7 @@ export function AppSidebar() {
     ];
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" variant="inset" className="print:hidden">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>

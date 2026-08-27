@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Legacy `trials_weighing` table — per-sample weighing readings for a
@@ -33,6 +34,40 @@ class TrialWeighing extends Model
         return [
             'is_skipped' => 'boolean',
             'created_at' => 'datetime',
+        ];
+    }
+
+    /**
+     * Port of weighing_stats() (app/bootstrap.php:385-403) — computed
+     * server-side so the same numbers work for both the Report Summary page
+     * and the later Browsershot PDF pass without needing JS.
+     *
+     * @param  Collection<int, TrialWeighing>  $items
+     * @return array{values: list<string>, count: int, min: float|null, max: float|null, avg: float|null}
+     */
+    public static function statsForSection(Collection $items): array
+    {
+        $nums = [];
+        $values = [];
+
+        foreach ($items as $item) {
+            if ($item->is_skipped) {
+                continue;
+            }
+
+            $value = $item->weight_value;
+            if ($value !== null && $value !== '' && is_numeric($value)) {
+                $nums[] = (float) $value;
+                $values[] = $value;
+            }
+        }
+
+        return [
+            'values' => $values,
+            'count' => count($nums),
+            'min' => $nums ? min($nums) : null,
+            'max' => $nums ? max($nums) : null,
+            'avg' => $nums ? array_sum($nums) / count($nums) : null,
         ];
     }
 }
