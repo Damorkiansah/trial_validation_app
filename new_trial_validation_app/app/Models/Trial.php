@@ -104,6 +104,14 @@ class Trial extends Model
     }
 
     /**
+     * @return HasMany<TrialAttachmentFile, $this>
+     */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(TrialAttachmentFile::class, 'trial_id');
+    }
+
+    /**
      * Named `deletedByUser` (not `deletedBy`) so JSON serialization keys it
      * as `deleted_by_user` — Eloquent's toArray() otherwise collides a
      * loaded relation's snake_case key with the raw `deleted_by` column

@@ -1,4 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import TrialWeighingController from '@/actions/App/Http/Controllers/TrialWeighingController';
 import Heading from '@/components/heading';
@@ -47,12 +48,12 @@ const WIZARD_STEP: Record<Section, number> = {
 
 function parseNumericValues(
     values: Record<number, string>,
-    maxItemNo: number,
+    itemNumbers: number[],
 ): number[] {
     const parsed: number[] = [];
 
-    for (let i = 1; i <= maxItemNo; i++) {
-        const raw = values[i];
+    for (const itemNo of itemNumbers) {
+        const raw = values[itemNo];
 
         if (raw === undefined || raw.trim() === '') {
             continue;
@@ -68,21 +69,36 @@ function parseNumericValues(
     return parsed;
 }
 
-export default function TrialWeighing({
+// Keyed by `section` from the parent so switching between Packaging and
+// Filling (same Inertia page component, different props) fully unmounts and
+// remounts this component instead of re-rendering it in place — otherwise
+// every useState here keeps whichever section's data it was first
+// initialized with, and the *other* section's page would silently show (and
+// on submit, overwrite) stale data left over from before the switch.
+export default function TrialWeighing(props: PageProps) {
+    return <WeighingForm key={props.section} {...props} />;
+}
+
+function WeighingForm({
     trial,
     section,
     values,
     skip: initialSkip,
     canEdit,
 }: PageProps) {
-    const initialMaxItemNo = useMemo(() => {
+    const { initialItemNumbers, initialMaxItemNo } = useMemo(() => {
         const keys = Object.keys(values).map((k) => parseInt(k, 10));
+        const max = keys.length ? Math.max(30, ...keys) : 30;
 
-        return keys.length ? Math.max(30, ...keys) : 30;
+        return {
+            initialItemNumbers: Array.from({ length: max }, (_, i) => i + 1),
+            initialMaxItemNo: max,
+        };
     }, [values]);
 
     const [skip, setSkip] = useState(initialSkip);
-    const [maxItemNo, setMaxItemNo] = useState(initialMaxItemNo);
+    const [itemNumbers, setItemNumbers] =
+        useState<number[]>(initialItemNumbers);
     const [sampleValues, setSampleValues] = useState<Record<number, string>>(
         () => {
             const initial: Record<number, string> = {};
@@ -95,8 +111,22 @@ export default function TrialWeighing({
         },
     );
 
+    function addSample() {
+        setItemNumbers((prev) => [...prev, Math.max(0, ...prev) + 1]);
+    }
+
+    function removeSample(itemNo: number) {
+        setItemNumbers((prev) => prev.filter((n) => n !== itemNo));
+        setSampleValues((prev) => {
+            const next = { ...prev };
+            delete next[itemNo];
+
+            return next;
+        });
+    }
+
     const stats = useMemo(() => {
-        const nums = parseNumericValues(sampleValues, maxItemNo);
+        const nums = parseNumericValues(sampleValues, itemNumbers);
 
         return {
             total: nums.length,
@@ -106,7 +136,7 @@ export default function TrialWeighing({
             min: nums.length ? Math.min(...nums).toFixed(2) : '-',
             max: nums.length ? Math.max(...nums).toFixed(2) : '-',
         };
-    }, [sampleValues, maxItemNo]);
+    }, [sampleValues, itemNumbers]);
 
     const backHref =
         section === 'Packaging'
@@ -118,31 +148,44 @@ export default function TrialWeighing({
 
     const grid = (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
-            {Array.from({ length: maxItemNo }, (_, i) => i + 1).map(
-                (itemNo) => (
-                    <Label
-                        key={itemNo}
-                        className="flex flex-col gap-1 text-xs text-muted-foreground"
-                    >
-                        {itemNo}
-                        <Input
-                            type="number"
-                            step="0.001"
-                            min="0"
-                            inputMode="decimal"
-                            name={`w[${itemNo}]`}
-                            value={sampleValues[itemNo] ?? ''}
-                            onChange={(e) =>
-                                setSampleValues((prev) => ({
-                                    ...prev,
-                                    [itemNo]: e.target.value,
-                                }))
-                            }
-                            disabled={!canEdit || skip}
-                        />
-                    </Label>
-                ),
-            )}
+            {itemNumbers.map((itemNo) => (
+                <div key={itemNo} className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-1">
+                        <Label
+                            htmlFor={`w-${itemNo}`}
+                            className="text-xs text-muted-foreground"
+                        >
+                            {itemNo}
+                        </Label>
+                        {canEdit && !skip && itemNo > initialMaxItemNo && (
+                            <button
+                                type="button"
+                                aria-label={`Remove sample ${itemNo}`}
+                                className="text-muted-foreground hover:text-destructive"
+                                onClick={() => removeSample(itemNo)}
+                            >
+                                <X className="size-3" />
+                            </button>
+                        )}
+                    </div>
+                    <Input
+                        id={`w-${itemNo}`}
+                        type="number"
+                        step="0.001"
+                        min="0"
+                        inputMode="decimal"
+                        name={`w[${itemNo}]`}
+                        value={sampleValues[itemNo] ?? ''}
+                        onChange={(e) =>
+                            setSampleValues((prev) => ({
+                                ...prev,
+                                [itemNo]: e.target.value,
+                            }))
+                        }
+                        disabled={!canEdit || skip}
+                    />
+                </div>
+            ))}
         </div>
     );
 
@@ -248,9 +291,7 @@ export default function TrialWeighing({
                                             variant="secondary"
                                             size="sm"
                                             disabled={skip}
-                                            onClick={() =>
-                                                setMaxItemNo((n) => n + 1)
-                                            }
+                                            onClick={addSample}
                                         >
                                             Add Sample
                                         </Button>

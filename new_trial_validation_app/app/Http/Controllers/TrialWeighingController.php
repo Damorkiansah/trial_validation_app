@@ -55,11 +55,10 @@ class TrialWeighingController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Weighing berhasil disimpan.']);
 
-        // Legacy's next step after Filling is /trials/{id}/attachments, which
-        // doesn't exist in this app yet — self-redirect back to Filling
-        // instead, same "wire in the next step once it's built" pattern used
-        // when TrialController::store()/update() redirected to itself before
-        // the Validation page existed.
-        return to_route('trials.weighing.edit', ['trial' => $trial, 'section' => 'Filling']);
+        if ($section === 'Packaging') {
+            return to_route('trials.weighing.edit', ['trial' => $trial, 'section' => 'Filling']);
+        }
+
+        return to_route('trials.attachments.edit', $trial);
     }
 }

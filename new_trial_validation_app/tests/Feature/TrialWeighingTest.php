@@ -68,7 +68,7 @@ test('saving packaging weighing samples persists rows, advances current_step, an
     expect($log->record_id)->toBe((string) $trial->id);
 });
 
-test('saving filling weighing samples advances current_step to attachment and self-redirects', function () {
+test('saving filling weighing samples advances current_step to attachment and redirects to attachments', function () {
     $owner = User::factory()->create(['email' => 'owner@local.test']);
     $trial = makeWeighingTrial(['created_by' => $owner->email, 'current_step' => 'WeighingFilling']);
 
@@ -76,7 +76,7 @@ test('saving filling weighing samples advances current_step to attachment and se
         'w' => ['1' => '30.0'],
     ]);
 
-    $response->assertRedirect(route('trials.weighing.edit', ['trial' => $trial, 'section' => 'Filling']));
+    $response->assertRedirect(route('trials.attachments.edit', $trial));
     expect($trial->fresh()->current_step)->toBe('Attachment');
 });
 

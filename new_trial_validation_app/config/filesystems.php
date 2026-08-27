@@ -47,6 +47,20 @@ return [
             'report' => false,
         ],
 
+        // Physically the SAME directory the legacy PHP app writes to
+        // (public/uploads/{trial_id}/{file}, __DIR__ relative to its own
+        // public/index.php) — both apps currently live in one repo checkout
+        // (see ../CLAUDE.md), so attachments uploaded via either app must
+        // land on disk where the other can also read them. Revisit this path
+        // coupling at Fase 4 if/when the two apps get separated onto their
+        // own web roots (same caveat as the shared-DB timezone decision).
+        'legacy_uploads' => [
+            'driver' => 'local',
+            'root' => env('LEGACY_UPLOADS_PATH', base_path('../public/uploads')),
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

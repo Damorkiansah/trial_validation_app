@@ -18,6 +18,17 @@ export function TrialWizardSteps({
     const completedSteps = resolveTrialCompletedSteps(trial);
     const showProgressNote =
         completedSteps !== null && completedSteps > currentStep;
+    // Attachments (unlike Validation/Weighing) never advances current_step
+    // past itself on save — photos are uploaded incrementally, not in one
+    // step-completing submit — so the backend has no way to signal "step 5
+    // is done" short of the trial leaving Draft entirely. Reaching a later
+    // step in this render (e.g. via the wizard's own "Continue" link) is
+    // itself proof every earlier step is behind you, so it always floors the
+    // complete-count.
+    const displayCompletedSteps = Math.max(
+        completedSteps ?? 0,
+        currentStep - 1,
+    );
 
     return (
         <nav aria-label="Trial progress" className="mb-2">
@@ -29,8 +40,7 @@ export function TrialWizardSteps({
                     const state: StepState =
                         step.number === currentStep
                             ? 'current'
-                            : completedSteps !== null &&
-                                step.number <= completedSteps
+                            : step.number <= displayCompletedSteps
                               ? 'complete'
                               : 'upcoming';
 
