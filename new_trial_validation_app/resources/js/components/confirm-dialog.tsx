@@ -11,6 +11,8 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 
+type FormRenderProps = { processing: boolean; errors: Record<string, string> };
+
 type ConfirmDialogProps = {
     trigger: ReactNode;
     title: string;
@@ -18,6 +20,8 @@ type ConfirmDialogProps = {
     confirmLabel?: string;
     confirmVariant?: ComponentProps<typeof Button>['variant'];
     formProps: Omit<ComponentProps<typeof Form>, 'children'>;
+    /** Extra fields rendered inside the <Form>, between the description and the footer buttons. */
+    children?: (bag: FormRenderProps) => ReactNode;
 };
 
 export function ConfirmDialog({
@@ -27,29 +31,35 @@ export function ConfirmDialog({
     confirmLabel = 'Confirm',
     confirmVariant = 'destructive',
     formProps,
+    children,
 }: ConfirmDialogProps) {
     return (
         <Dialog>
             <DialogTrigger asChild>{trigger}</DialogTrigger>
             <DialogContent>
                 <DialogTitle>{title}</DialogTitle>
-                <DialogDescription>{description}</DialogDescription>
-                <DialogFooter className="gap-2">
-                    <DialogClose asChild>
-                        <Button variant="secondary">Cancel</Button>
-                    </DialogClose>
-                    <Form options={{ preserveScroll: true }} {...formProps}>
-                        {({ processing }) => (
-                            <Button
-                                type="submit"
-                                variant={confirmVariant}
-                                disabled={processing}
-                            >
-                                {confirmLabel}
-                            </Button>
-                        )}
-                    </Form>
-                </DialogFooter>
+                <Form options={{ preserveScroll: true }} {...formProps}>
+                    {({ processing, errors }) => (
+                        <>
+                            <DialogDescription>{description}</DialogDescription>
+                            {children?.({ processing, errors })}
+                            <DialogFooter className="mt-4 gap-2">
+                                <DialogClose asChild>
+                                    <Button type="button" variant="secondary">
+                                        Cancel
+                                    </Button>
+                                </DialogClose>
+                                <Button
+                                    type="submit"
+                                    variant={confirmVariant}
+                                    disabled={processing}
+                                >
+                                    {confirmLabel}
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </Form>
             </DialogContent>
         </Dialog>
     );

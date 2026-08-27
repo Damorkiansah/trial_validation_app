@@ -71,14 +71,18 @@ class TrialPolicy
         return true;
     }
 
+    /**
+     * Port of the authorization checks inline in legacy's POST
+     * /trials/{id}/approval handler (public/index.php:884-898). Note this is
+     * narrower than the approval *queue's* visibility (see
+     * Trial::scopeAwaitingApprovalFor()): Team Leader/Part Leader/Team Leader
+     * QA can *see* every Ready-for-Approval trial in the queue, but — same as
+     * every other non-Admin/Manager-QAC role — can only actually approve one
+     * that's specifically assigned to them via approver_user_id.
+     */
     public function approve(User $user, Trial $trial): bool
     {
         if ($user->isAdmin() || $user->isManagerQac()) {
-            return true;
-        }
-
-        $approverRoles = ['Team Leader', 'Part Leader', 'Team Leader QA'];
-        if (in_array($user->role, $approverRoles, true)) {
             return true;
         }
 

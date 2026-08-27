@@ -42,6 +42,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'canReviewTrials' => $request->user()?->isReviewer() ?? false,
+            'canApproveTrials' => $request->user()?->canApproveTrials() ?? false,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

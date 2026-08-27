@@ -3,6 +3,7 @@ import {
     AlertTriangle,
     Bell,
     CheckCircle2,
+    CircleCheckBig,
     ClipboardCheck,
     Clock,
     FileEdit,
@@ -39,14 +40,16 @@ import { index as parametersIndex } from '@/routes/admin/parameters';
 import { index as productsIndex } from '@/routes/admin/products';
 import { index as trashIndex } from '@/routes/admin/trash';
 import { index as usersIndex } from '@/routes/admin/users';
+import { index as approvalsIndex } from '@/routes/approvals';
 import { index as reviewsIndex } from '@/routes/reviews';
 import { create as createTrial, index as trialsIndex } from '@/routes/trials';
 import type { Auth, NavGroup } from '@/types';
 
 export function AppSidebar() {
-    const { auth, canReviewTrials } = usePage<{
+    const { auth, canReviewTrials, canApproveTrials } = usePage<{
         auth: Auth;
         canReviewTrials: boolean;
+        canApproveTrials: boolean;
     }>().props;
     const isSuperAdmin = auth.user.role === 'Super Admin';
     const isAdmin = auth.user.role === 'Admin' || isSuperAdmin;
@@ -116,6 +119,18 @@ export function AppSidebar() {
                           title: 'Review Queue',
                           href: reviewsIndex(),
                           icon: ClipboardCheck,
+                      },
+                  ]
+                : [],
+        },
+        {
+            label: 'Approval',
+            items: canApproveTrials
+                ? [
+                      {
+                          title: 'Approval Queue',
+                          href: approvalsIndex(),
+                          icon: CircleCheckBig,
                       },
                   ]
                 : [],

@@ -71,5 +71,9 @@ class AppServiceProvider extends ServiceProvider
         // reviewer-department master, draft-trial edit-permission
         // grant/revoke) — Super Admin only, no Admin fallback.
         Gate::define('manage-access-rights', fn (User $user) => $user->isSuperAdmin());
+        // Port of can_approve_trials() guarding legacy's /approvals queue —
+        // who may open the approval queue at all (User::canApproveTrials()
+        // already existed from the Fase 0 RBAC port, unused until now).
+        Gate::define('view-approval-queue', fn (User $user) => $user->canApproveTrials());
     }
 }

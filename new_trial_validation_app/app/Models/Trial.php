@@ -136,6 +136,14 @@ class Trial extends Model
         return $this->belongsTo(User::class, 'created_by', 'email');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approver_user_id');
+    }
+
     public function currentReviewRound(): int
     {
         return (int) $this->revision_no + 1;
@@ -206,6 +214,32 @@ class Trial extends Model
         } elseif ($statusGroup === 'waiting' && ! $user->isAdmin()) {
             $query->where(fn (Builder $q) => $q->whereNull('trials_header.approver_user_id')
                 ->orWhere('trials_header.approver_user_id', $user->id));
+        }
+
+        return $query;
+    }
+
+    /**
+     * Port of the /approvals queue query (public/index.php:859-880). Distinct
+     * from TrialPolicy::approve() — this decides who sees which trials in the
+     * approval *queue list*, not who may actually submit a decision for one.
+     * Admin, Manager QAC, and Team Leader/Part Leader/Team Leader QA see every
+     * Ready-for-Approval trial; anyone else only sees trials specifically
+     * assigned to them via approver_user_id.
+     *
+     * @param  Builder<Trial>  $query
+     * @return Builder<Trial>
+     */
+    public function scopeAwaitingApprovalFor(Builder $query, User $user): Builder
+    {
+        $query->where('trials_header.progress_status', 'Ready for Approval')
+            ->whereNull('trials_header.deleted_at');
+
+        $approverRoles = ['Team Leader', 'Part Leader', 'Team Leader QA'];
+        $canSeeAll = $user->isAdmin() || $user->isManagerQac() || in_array($user->role, $approverRoles, true);
+
+        if (! $canSeeAll) {
+            $query->where('trials_header.approver_user_id', $user->id);
         }
 
         return $query;
