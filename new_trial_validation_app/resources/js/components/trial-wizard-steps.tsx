@@ -1,10 +1,9 @@
 import { Check } from 'lucide-react';
 import {
     resolveTrialCompletedSteps,
-    TRIAL_WIZARD_STEPS
-    
+    TRIAL_WIZARD_STEPS,
 } from '@/lib/trial-wizard';
-import type {TrialWizardTrial} from '@/lib/trial-wizard';
+import type { TrialWizardTrial } from '@/lib/trial-wizard';
 import { cn } from '@/lib/utils';
 
 type StepState = 'complete' | 'current' | 'upcoming';

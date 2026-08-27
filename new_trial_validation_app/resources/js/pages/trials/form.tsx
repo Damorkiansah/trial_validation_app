@@ -97,7 +97,7 @@ export default function TrialForm({
                 }
             />
 
-            <div className="mx-auto max-w-4xl space-y-6 p-4">
+            <div className="mx-auto max-w-6xl space-y-6 p-4">
                 <div className="flex items-center justify-between gap-4">
                     <Heading
                         title={
@@ -156,7 +156,7 @@ export default function TrialForm({
                                     <CardTitle>Informasi Produk</CardTitle>
                                 </CardHeader>
                                 <CardContent className="grid gap-4 sm:grid-cols-2">
-                                    <div className="grid gap-2">
+                                    <div className="grid min-w-0 gap-2">
                                         <Label htmlFor="product">Product</Label>
                                         <Combobox
                                             options={products.map((p) => ({
@@ -324,7 +324,7 @@ export default function TrialForm({
                                     <CardTitle>Cakupan & Mesin</CardTitle>
                                 </CardHeader>
                                 <CardContent className="grid gap-4 sm:grid-cols-2">
-                                    <div className="grid gap-2">
+                                    <div className="grid min-w-0 gap-2">
                                         <Label htmlFor="validation_scope">
                                             Validation Scope
                                         </Label>
@@ -348,7 +348,7 @@ export default function TrialForm({
                                         />
                                     </div>
 
-                                    <div className="grid gap-2">
+                                    <div className="grid min-w-0 gap-2">
                                         <Label htmlFor="machine_used">
                                             Machine Used
                                         </Label>

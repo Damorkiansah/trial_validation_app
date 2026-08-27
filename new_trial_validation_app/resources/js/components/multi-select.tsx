@@ -128,18 +128,20 @@ export function MultiSelect({
                 </PopoverContent>
             </Popover>
             {selectedOptions.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5 rounded-md border border-dashed p-2">
                     {selectedOptions.map((option) => (
                         <Badge
                             key={option.value}
                             variant="secondary"
                             className="gap-1 pr-1"
                         >
-                            {option.label}
+                            <span className="max-w-48 truncate">
+                                {option.label}
+                            </span>
                             <button
                                 type="button"
                                 onClick={() => remove(option.value)}
-                                className="rounded-full p-0.5 hover:bg-black/10 dark:hover:bg-white/10"
+                                className="shrink-0 rounded-full p-0.5 hover:bg-black/10 dark:hover:bg-white/10"
                                 aria-label={`Hapus ${option.label}`}
                             >
                                 <XIcon className="size-3" />

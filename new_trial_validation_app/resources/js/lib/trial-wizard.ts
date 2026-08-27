@@ -41,12 +41,12 @@ export function resolveTrialCompletedSteps(
     trial: TrialWizardTrial | null | undefined,
 ): number | null {
     if (!trial) {
-return null;
-}
+        return null;
+    }
 
     if (trial.progress_status !== 'Draft') {
-return 6;
-}
+        return 6;
+    }
 
     switch (trial.current_step) {
         case 'Validation':
